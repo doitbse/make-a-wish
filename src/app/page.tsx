@@ -1,4 +1,3 @@
-import FeedbackWidget from "@/components/feedback-widget/FeedbackWidget";
 import Link from "next/link";
 
 /**
@@ -215,8 +214,6 @@ export default function Home() {
           something off? Tap the ✨ button in the bottom-right.
         </p>
       </main>
-
-      <FeedbackWidget />
     </div>
   );
 }

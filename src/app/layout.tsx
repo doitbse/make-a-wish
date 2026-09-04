@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -7,11 +8,21 @@ export const metadata: Metadata = {
     "Sample product surface used to test the in-app feedback widget. Submit a wish, bug, or annotation.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900">
         {children}
+        <Script
+          src="/widget.js"
+          data-app="acme-analytics"
+          data-repo="doitbse/make-a-wish"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
