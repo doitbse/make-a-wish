@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   if (triageUrl) {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 90_000);
+      const timeout = setTimeout(() => controller.abort(), 180_000);
       const res = await fetch(`${triageUrl.replace(/\/$/, "")}/triage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
