@@ -1,4 +1,6 @@
-import FeedbackWidget from "@/components/feedback-widget/FeedbackWidget";
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 
 /**
@@ -28,6 +30,12 @@ const ROWS = [
 ];
 
 export default function Home() {
+  const [statusFilter, setStatusFilter] = useState("");
+
+  const filteredRows = statusFilter
+    ? ROWS.filter((r) => r.status === statusFilter)
+    : ROWS;
+
   return (
     <div className="flex min-h-full flex-col">
       {/* Top nav */}
@@ -153,15 +161,17 @@ export default function Home() {
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
             <h2 className="text-sm font-semibold text-slate-900">Accounts</h2>
             <div className="flex items-center gap-2">
-              {/* Intentionally empty / broken filter — perfect annotation target */}
+              {/* Wire up the status filter dropdown */}
               <select
                 aria-label="Filter by status"
-                className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-400"
-                defaultValue=""
+                className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-700 bg-white"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
               >
-                <option value="" disabled>
-                  Filter…
-                </option>
+                <option value="">Filter...</option>
+                <option value="Active">Active</option>
+                <option value="Trial">Trial</option>
+                <option value="Past due">Past due</option>
               </select>
               <button
                 type="button"
@@ -181,7 +191,7 @@ export default function Home() {
               </tr>
             </thead>
             <tbody>
-              {ROWS.map((r, i) => (
+              {filteredRows.map((r, i) => (
                 <tr
                   key={i}
                   className="border-b border-slate-50 last:border-0 hover:bg-slate-50"
@@ -215,8 +225,6 @@ export default function Home() {
           something off? Tap the ✨ button in the bottom-right.
         </p>
       </main>
-
-      <FeedbackWidget />
     </div>
   );
 }
