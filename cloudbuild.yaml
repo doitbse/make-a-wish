@@ -1,0 +1,42 @@
+# Cloud Build configuration for Make-a-Wish Client Website
+# Target GCP Project: sascha-playground-doit
+steps:
+  # 1. Build container image using multi-stage Next.js Dockerfile
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/make-a-wish-website:$COMMIT_SHA'
+      - '-t'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/make-a-wish-website:latest'
+      - '.'
+
+  # 2. Push image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/make-a-wish-website:$COMMIT_SHA'
+
+  # 3. Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'make-a-wish-website'
+      - '--image=$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/make-a-wish-website:$COMMIT_SHA'
+      - '--region=$_REGION'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--set-env-vars=GCP_PROJECT_ID=$PROJECT_ID,NODE_ENV=production'
+
+substitutions:
+  _REGION: 'us-central1'
+  _AR_REPO: 'cloud-run-source-deploy'
+
+images:
+  - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/make-a-wish-website:$COMMIT_SHA'
+  - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/make-a-wish-website:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
