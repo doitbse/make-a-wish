@@ -51,7 +51,12 @@ async function readLocalSubmissions(): Promise<StoredFeedback[]> {
 async function writeLocalSubmissions(subs: StoredFeedback[]): Promise<void> {
   try {
     await fs.mkdir(DATA_DIR, { recursive: true });
-    await fs.writeFile(DATA_FILE, JSON.stringify(subs, null, 2), "utf8");
+    // Strip bulky base64 screenshots from local json backup to prevent multi-megabyte bloat
+    const sanitized = subs.map((s) => ({
+      ...s,
+      screenshot: s.screenshot ? "[screenshot omitted in local backup]" : null,
+    }));
+    await fs.writeFile(DATA_FILE, JSON.stringify(sanitized, null, 2), "utf8");
   } catch (err) {
     console.error("[feedback-store] Failed to write local feedback backup:", err);
   }
