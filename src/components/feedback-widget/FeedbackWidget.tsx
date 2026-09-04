@@ -117,8 +117,8 @@ export default function FeedbackWidget() {
     setError(null);
 
     let shot = screenshot;
-    if (shot === null && annotations.length > 0) {
-      // Capture now if we haven't yet (e.g. user closed annotation without Done).
+    if (shot === null) {
+      // Capture screenshot if we haven't yet, automatically excluding the Make-a-Wish UI.
       shot = await captureAnnotatedScreenshot(annotations);
     }
     setScreenshot(shot);

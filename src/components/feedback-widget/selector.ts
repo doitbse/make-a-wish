@@ -86,13 +86,28 @@ export async function captureAnnotatedScreenshot(
   annotations: Annotation[],
 ): Promise<string | null> {
   try {
-    const { toPng } = await import("html-to-image");
+    // Temporarily clear any hover styling from DOM elements before capture
+    document
+      .querySelectorAll("[data-maw-hover]")
+      .forEach((el) => el.removeAttribute("data-maw-hover"));
 
+    const { toPng } = await import("html-to-image");
     const root = document.documentElement;
     const dataUrl = await toPng(root, {
       backgroundColor: "#ffffff",
       width: root.scrollWidth,
       height: root.scrollHeight,
+      filter: (node: Node) => {
+        if (node instanceof HTMLElement || node instanceof SVGElement) {
+          if (
+            node.hasAttribute("data-maw-chrome") ||
+            Boolean(node.closest && node.closest("[data-maw-chrome]"))
+          ) {
+            return false;
+          }
+        }
+        return true;
+      },
     });
 
     if (annotations.length === 0) return dataUrl;
