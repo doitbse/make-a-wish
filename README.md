@@ -4,7 +4,7 @@ A sample web product surface ("Acme Analytics") featuring charts, KPI metrics, a
 
 This repository serves as the dedicated testbed application to exercise the feedback widget and triage agent flow.
 
-> **Platform Repository**: The autonomous triage agent, Ops Dashboard, embeddable widget engine, and Terraform infrastructure reside in [`doitbse/make-a-wish-agent`](https://github.com/doitbse/make-a-wish-agent).
+> **Platform Repository**: The autonomous triage agent, Ops Dashboard, embeddable widget engine, and Terraform infrastructure reside in [`doitbse/make-a-wish-platform`](https://github.com/doitbse/make-a-wish-platform).
 
 ## Features
 
