@@ -1,22 +1,16 @@
-# make-a-wish
+# Acme Analytics (`make-a-wish`)
 
-A dummy product surface ("Acme Analytics") with an embedded in-app **feedback
-widget**. This is the public testing website for a feedback + triage flow: end
-users submit feedback (a wish, bug, confusion, wrong-data report, or praise),
-annotate elements directly on the page, and the submission is forwarded to a
-companion Gemini triage agent.
+A sample web product surface ("Acme Analytics") featuring charts, KPI metrics, account lists, and an embedded in-app **Make-a-Wish feedback widget**.
 
-> The triage agent itself lives in a **private** companion repo
-> (`doitbse/make-a-wish-agent`). This repo is just the UI + capture layer.
+This repository serves as the dedicated testbed application to exercise the feedback widget and triage agent flow.
 
-## What's here
+> **Platform Repository**: The autonomous triage agent, Ops Dashboard, embeddable widget engine, and Terraform infrastructure reside in [`doitbse/make-a-wish-agent`](https://github.com/doitbse/make-a-wish-agent).
 
-- **Sample dashboard** (`src/app/page.tsx`) — a realistic-looking analytics page
-  (KPIs, a chart, an accounts table) full of distinct DOM elements to annotate.
-- **Feedback widget** (`src/components/feedback-widget/`) — a floating ✨ button
-  that opens a top-right "Make a wish" modal.
-- **Capture API** (`src/app/api/feedback/route.ts`) — persists submissions to
-  `data/feedback.json` and forwards them to the triage service.
+## Features
+
+- **Analytics Dashboard (`src/app/page.tsx`)**: A realistic analytics page with revenue overview charts, KPIs, and accounts table with deliberate interactive fixtures for testing.
+- **Embedded Widget (`layout.tsx`)**: Embedded via the Make-a-Wish script tag with full shadow DOM isolation, element annotation, and screen capture.
+- **Feedback Ingestion Route (`src/app/api/feedback/route.ts`)**: Local ingestion route forwarding submissions to the triage agent service.
 
 ## The widget
 
@@ -66,8 +60,6 @@ curl http://localhost:3000/api/feedback
 
 ## Notes
 
-- This is a **testing** UI — the dashboard's filter dropdown and refresh button
-  are intentionally inert so there's something to report.
+- This is a testing UI: the dashboard filter dropdown and refresh button are intentionally inert so that there is something to report.
 - The screenshot is captured with [`html-to-image`](https://github.com/bubkoo/html-to-image).
-  If a capture fails (e.g. a tainted canvas), the submission still goes through
-  with `screenshot: null`.
+  If a capture fails (e.g. a tainted canvas), the submission still goes through with `screenshot: null`.
