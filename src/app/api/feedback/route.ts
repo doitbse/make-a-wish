@@ -40,15 +40,20 @@ async function triggerBackgroundTriage(
     const res = await fetch(`${triageUrl.replace(/\/$/, "")}/triage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(submission),
+      body: JSON.stringify({ ...submission, id: feedbackId }),
       signal: controller.signal,
     });
     clearTimeout(timeout);
 
     if (res.ok) {
-      const triage = (await res.json()) as TriageResult;
+      const data = await res.json();
+      const triage = (data.primary || data) as TriageResult;
+      const triage_adk = (data.adk || null) as TriageResult | null;
+      const triage_managed = (data.managed || null) as TriageResult | null;
       await updateFeedback(feedbackId, {
         triage,
+        triage_adk: triage_adk || undefined,
+        triage_managed: triage_managed || undefined,
         status: "triaged",
         triageError: null,
         triagedAt: new Date().toISOString(),

@@ -7,6 +7,8 @@ import type { FeedbackSubmission, TriageResult } from "@/components/feedback-wid
 export type StoredFeedback = FeedbackSubmission & {
   id: string;
   triage: TriageResult | null;
+  triage_adk?: TriageResult | null;
+  triage_managed?: TriageResult | null;
   triageError: string | null;
   storedAt: string;
   triagedAt?: string;
@@ -133,6 +135,8 @@ export async function updateFeedback(
       const updatePayload: Record<string, unknown> = {};
       if (updates.status !== undefined) updatePayload.status = updates.status;
       if (updates.triage !== undefined) updatePayload.triage = updates.triage;
+      if (updates.triage_adk !== undefined) updatePayload.triage_adk = updates.triage_adk;
+      if (updates.triage_managed !== undefined) updatePayload.triage_managed = updates.triage_managed;
       if (updates.triageError !== undefined) updatePayload.triageError = updates.triageError;
       if (updates.triagedAt !== undefined) updatePayload.triagedAt = updates.triagedAt;
 
