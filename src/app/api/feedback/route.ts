@@ -1,39 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
 import type { FeedbackSubmission, TriageResult } from "@/components/feedback-widget/types";
+import { saveFeedback, getFeedbackList, type StoredFeedback } from "@/lib/feedback-store";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const DATA_FILE = path.join(DATA_DIR, "feedback.json");
-
-type StoredRecord = FeedbackSubmission & {
-  triage: TriageResult | null;
-  triageError: string | null;
-  storedAt: string;
-};
-
-async function readSubmissions(): Promise<StoredRecord[]> {
-  try {
-    const raw = await fs.readFile(DATA_FILE, "utf8");
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as StoredRecord[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-async function writeSubmissions(subs: StoredRecord[]): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(DATA_FILE, JSON.stringify(subs, null, 2), "utf8");
-}
-
 /**
- * Persist a feedback submission and (optionally) forward it to the companion
- * triage service. The triage call is best-effort: a failure never blocks the
- * submission from being stored.
+ * Persist a feedback submission and forward it to the companion
+ * triage service. Stored in Firestore (sascha-playground-doit) with local fallback.
  */
 export async function POST(req: NextRequest) {
   let body: FeedbackSubmission;
@@ -64,28 +38,40 @@ export async function POST(req: NextRequest) {
         triageError = `triage responded ${res.status}`;
       }
     } catch (err) {
-      triageError =
-        err instanceof Error ? err.message : "triage fetch failed";
+      triageError = err instanceof Error ? err.message : "triage fetch failed";
     }
   }
 
-  // Persist (best-effort — never fail the request on a disk error).
+  // Persist to Firestore / local backup
+  let savedRecord: StoredFeedback | null = null;
   try {
-    const subs = await readSubmissions();
-    subs.push({ ...body, triage, triageError, storedAt: new Date().toISOString() });
-    await writeSubmissions(subs);
+    savedRecord = await saveFeedback({
+      ...body,
+      triage,
+      triageError,
+      storedAt: new Date().toISOString(),
+    });
   } catch (err) {
     console.error("[make-a-wish] failed to persist submission:", err);
   }
 
-  return NextResponse.json({ ok: true, stored: true, triage, triageError });
+  return NextResponse.json({
+    ok: true,
+    stored: true,
+    id: savedRecord?.id,
+    source: savedRecord?.source,
+    triage,
+    triageError,
+  });
 }
 
-/** Returns stored submissions — handy for demos / debugging. */
+/** Returns stored submissions from Firestore / local backup. */
 export async function GET() {
   try {
-    return NextResponse.json(await readSubmissions());
-  } catch {
-    return NextResponse.json([]);
+    const list = await getFeedbackList();
+    return NextResponse.json(list);
+  } catch (err) {
+    console.error("[make-a-wish] failed to fetch feedback list:", err);
+    return NextResponse.json([], { status: 500 });
   }
 }

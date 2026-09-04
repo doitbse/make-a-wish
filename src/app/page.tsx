@@ -1,4 +1,5 @@
 import FeedbackWidget from "@/components/feedback-widget/FeedbackWidget";
+import Link from "next/link";
 
 /**
  * Sample product surface ("Acme Analytics") used to exercise the feedback
@@ -53,6 +54,12 @@ export default function Home() {
             <a className="hover:text-slate-900" href="#settings">
               Settings
             </a>
+            <Link
+              className="flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+              href="/feedback"
+            >
+              Feedback Board ✨
+            </Link>
           </nav>
           <div className="flex items-center gap-2">
             <span className="hidden text-xs text-slate-400 sm:inline">
