@@ -1,4 +1,7 @@
-import Link from "next/link";
+"use client";
+
+import { useState } from "react";
+import FeedbackWidget from "@/components/feedback-widget/FeedbackWidget";
 
 /**
  * Sample product surface ("Acme Analytics") used to exercise the feedback
@@ -27,6 +30,12 @@ const ROWS = [
 ];
 
 export default function Home() {
+  const [statusFilter, setStatusFilter] = useState("");
+
+  const filteredRows = statusFilter
+    ? ROWS.filter((r) => r.status === statusFilter)
+    : ROWS;
+
   return (
     <div className="flex min-h-full flex-col">
       {/* Top nav */}
@@ -53,12 +62,6 @@ export default function Home() {
             <a className="hover:text-slate-900" href="#settings">
               Settings
             </a>
-            <Link
-              className="flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
-              href="/feedback"
-            >
-              Feedback Board ✨
-            </Link>
           </nav>
           <div className="flex items-center gap-2">
             <span className="hidden text-xs text-slate-400 sm:inline">
@@ -80,7 +83,7 @@ export default function Home() {
           <button
             type="button"
             className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-slate-300"
-          >
+          > 
             Export
           </button>
         </div>
@@ -152,15 +155,16 @@ export default function Home() {
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
             <h2 className="text-sm font-semibold text-slate-900">Accounts</h2>
             <div className="flex items-center gap-2">
-              {/* Intentionally empty / broken filter — perfect annotation target */}
               <select
                 aria-label="Filter by status"
-                className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-400"
-                defaultValue=""
+                className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-700 bg-white"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
               >
-                <option value="" disabled>
-                  Filter…
-                </option>
+                <option value="">Filter...</option>
+                <option value="Active">Active</option>
+                <option value="Trial">Trial</option>
+                <option value="Past due">Past due</option>
               </select>
               <button
                 type="button"
@@ -180,7 +184,7 @@ export default function Home() {
               </tr>
             </thead>
             <tbody>
-              {ROWS.map((r, i) => (
+              {filteredRows.map((r, i) => (
                 <tr
                   key={i}
                   className="border-b border-slate-50 last:border-0 hover:bg-slate-50"
@@ -214,6 +218,8 @@ export default function Home() {
           something off? Tap the ✨ button in the bottom-right.
         </p>
       </main>
+
+      <FeedbackWidget />
     </div>
   );
 }
