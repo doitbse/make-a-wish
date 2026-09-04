@@ -101,12 +101,15 @@ export class MakeAWishWidgetUI {
   private render() {
     this.root.innerHTML = `
       <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,300;8..60,400&display=swap');
+
         :host {
           all: initial;
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-          color: #0f172a;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          color: #1a1a2e;
           line-height: 1.5;
           font-size: 14px;
+          -webkit-font-smoothing: antialiased;
         }
         * {
           box-sizing: border-box;
@@ -119,26 +122,28 @@ export class MakeAWishWidgetUI {
           display: flex;
           align-items: center;
           gap: 8px;
-          height: 48px;
-          padding: 0 16px;
-          border-radius: 9999px;
-          background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+          height: 46px;
+          padding: 0 18px;
+          border-radius: 20px;
+          background: #d42955;
           color: #ffffff;
           border: none;
-          box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.4), 0 8px 10px -6px rgba(99, 102, 241, 0.2);
+          box-shadow: 0 8px 20px -4px rgba(212, 41, 85, 0.35), 0 4px 6px -2px rgba(212, 41, 85, 0.2);
           cursor: pointer;
-          font-weight: 600;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          font-weight: 500;
           font-size: 14px;
-          transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+          letter-spacing: -0.2px;
+          transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
         }
         .maw-launcher:hover {
           transform: translateY(-2px);
-          box-shadow: 0 14px 28px -5px rgba(99, 102, 241, 0.5);
-          background: linear-gradient(135deg, #4338ca 0%, #4f46e5 100%);
+          background: #fc3165;
+          box-shadow: 0 12px 24px -4px rgba(252, 49, 101, 0.45);
         }
         .maw-launcher svg {
-          width: 20px;
-          height: 20px;
+          width: 18px;
+          height: 18px;
           fill: none;
           stroke: currentColor;
           stroke-width: 2;
@@ -148,12 +153,12 @@ export class MakeAWishWidgetUI {
           ${this.config.position === "bottom-left" ? "left: 24px;" : "right: 24px;"}
           bottom: 84px;
           z-index: 2147483641;
-          width: min(92vw, 380px);
+          width: min(92vw, 388px);
           max-height: calc(100vh - 100px);
           background: #ffffff;
-          border: 1px solid #e2e8f0;
-          border-radius: 16px;
-          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+          border: 1px solid #e5e7eb;
+          border-radius: 18px;
+          box-shadow: rgba(0, 0, 0, 0.05) 0px 0px 0px 1px, rgba(15, 23, 42, 0.08) 0px 20px 40px, rgba(0, 0, 0, 0.04) 0px 4px 6px -4px;
           overflow: hidden;
           display: flex;
           flex-direction: column;
@@ -163,18 +168,25 @@ export class MakeAWishWidgetUI {
         .maw-modal.is-dragging {
           user-select: none;
           -webkit-user-select: none;
-          box-shadow: 0 25px 35px -5px rgba(0, 0, 0, 0.2), 0 12px 16px -6px rgba(0, 0, 0, 0.15);
+          box-shadow: rgba(0, 0, 0, 0.08) 0px 0px 0px 1px, rgba(15, 23, 42, 0.16) 0px 25px 50px, rgba(0, 0, 0, 0.08) 0px 8px 12px -4px;
         }
         @keyframes maw-pop {
           from { opacity: 0; transform: scale(0.96) translateY(8px); }
           to { opacity: 1; transform: scale(1) translateY(0); }
         }
+        .maw-top-accent {
+          height: 3px;
+          width: 100%;
+          background: linear-gradient(to right, rgba(252, 49, 101, 0.35), rgba(255, 125, 154, 0.15) 70%, rgba(252, 49, 101, 0.05));
+          flex-shrink: 0;
+        }
         .maw-header {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 12px 16px;
-          border-bottom: 1px solid #f1f5f9;
+          padding: 13px 16px;
+          border-bottom: 1px solid #e5e7eb;
+          background: rgba(255, 255, 255, 0.95);
           cursor: grab;
           user-select: none;
           -webkit-user-select: none;
@@ -187,26 +199,41 @@ export class MakeAWishWidgetUI {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          color: #94a3b8;
-          margin-right: 2px;
+          color: #9ca3af;
+          margin-right: 4px;
           cursor: grab;
+          transition: color 0.15s ease;
         }
         .maw-header:hover .maw-drag-handle {
-          color: #64748b;
+          color: #fc3165;
         }
         .maw-title {
           display: flex;
           align-items: center;
           gap: 8px;
-          font-weight: 600;
-          font-size: 15px;
-          color: #0f172a;
+          font-family: 'Source Serif 4', 'moderatSerif', Georgia, 'Times New Roman', serif;
+          font-weight: 400;
+          font-size: 18px;
+          letter-spacing: -0.5px;
+          color: #1a1a2e;
+        }
+        .maw-title-icon {
+          width: 18px;
+          height: 18px;
+          color: #fc3165;
+          fill: none;
+          stroke: currentColor;
+          stroke-width: 2;
+          flex-shrink: 0;
         }
         .maw-badge {
+          font-family: 'Inter', sans-serif;
           font-size: 11px;
           font-weight: 500;
-          color: #6366f1;
-          background: #eef2ff;
+          letter-spacing: 0.35px;
+          color: #fc3165;
+          background: rgba(252, 49, 101, 0.08);
+          border: 1px solid rgba(252, 49, 101, 0.18);
           padding: 2px 8px;
           border-radius: 9999px;
         }
@@ -214,16 +241,17 @@ export class MakeAWishWidgetUI {
           background: transparent;
           border: none;
           cursor: pointer;
-          color: #94a3b8;
-          padding: 4px;
-          border-radius: 6px;
+          color: #9ca3af;
+          padding: 5px;
+          border-radius: 6.5px;
           display: flex;
           align-items: center;
           justify-content: center;
+          transition: all 0.15s ease;
         }
         .maw-close-btn:hover {
-          color: #334155;
-          background: #f1f5f9;
+          color: #1a1a2e;
+          background: #f8f9fa;
         }
         .maw-body {
           padding: 16px;
@@ -231,6 +259,7 @@ export class MakeAWishWidgetUI {
           display: flex;
           flex-direction: column;
           gap: 14px;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         }
         .maw-categories {
           display: flex;
@@ -240,73 +269,89 @@ export class MakeAWishWidgetUI {
         .maw-chip {
           display: inline-flex;
           align-items: center;
-          gap: 4px;
-          padding: 6px 12px;
-          border-radius: 9999px;
-          border: 1px solid #e2e8f0;
+          gap: 5px;
+          padding: 6px 14px;
+          border-radius: 20px;
+          border: 1px solid #e5e7eb;
           background: #ffffff;
+          font-family: 'Inter', sans-serif;
           font-size: 12px;
           font-weight: 500;
-          color: #475569;
+          color: #6b7280;
           cursor: pointer;
-          transition: all 0.12s ease;
+          transition: all 0.15s ease;
         }
         .maw-chip:hover {
-          border-color: #cbd5e1;
-          background: #f8fafc;
+          border-color: rgba(252, 49, 101, 0.4);
+          color: #1a1a2e;
+          background: #f8f9fa;
         }
         .maw-chip.active {
-          background: #4f46e5;
-          color: #ffffff;
-          border-color: #4f46e5;
+          background: rgba(252, 49, 101, 0.09);
+          color: #fc3165;
+          border-color: #fc3165;
+          font-weight: 500;
         }
         .maw-textarea {
           width: 100%;
-          min-height: 90px;
+          min-height: 96px;
           padding: 10px 12px;
-          border: 1px solid #cbd5e1;
-          border-radius: 8px;
-          font-family: inherit;
+          border: 1px solid #e5e7eb;
+          border-radius: 10px;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
           font-size: 13px;
-          color: #0f172a;
+          line-height: 1.5;
+          color: #1a1a2e;
           resize: vertical;
           outline: none;
+          transition: border-color 0.15s ease, box-shadow 0.15s ease;
+          box-sizing: border-box;
+        }
+        .maw-textarea::placeholder {
+          color: #9ca3af;
         }
         .maw-textarea:focus {
-          border-color: #6366f1;
-          box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+          border-color: #fc3165;
+          box-shadow: 0 0 0 3px rgba(252, 49, 101, 0.12);
         }
         .maw-annotate-row {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 8px 12px;
-          background: #f8fafc;
-          border: 1px dashed #cbd5e1;
-          border-radius: 8px;
+          padding: 10px 12px;
+          background: #f8f9fa;
+          border: 1px solid #e5e7eb;
+          border-radius: 10px;
         }
         .maw-annotate-btn {
           display: inline-flex;
           align-items: center;
           gap: 6px;
           background: #ffffff;
-          border: 1px solid #cbd5e1;
+          border: 1px solid #e5e7eb;
           padding: 6px 12px;
-          border-radius: 6px;
+          border-radius: 6.5px;
+          font-family: 'Inter', sans-serif;
           font-size: 12px;
-          font-weight: 600;
-          color: #334155;
+          font-weight: 500;
+          color: #1a1a2e;
           cursor: pointer;
+          transition: all 0.15s ease;
+        }
+        .maw-annotate-btn svg {
+          color: #fc3165;
         }
         .maw-annotate-btn:hover {
-          background: #f1f5f9;
+          border-color: #fc3165;
+          color: #fc3165;
+          background: #ffffff;
         }
         .maw-screenshot-preview {
           position: relative;
           width: 100%;
-          border-radius: 8px;
+          border-radius: 10px;
           overflow: hidden;
-          border: 1px solid #e2e8f0;
+          border: 1px solid #e5e7eb;
           max-height: 140px;
         }
         .maw-screenshot-preview img {
@@ -318,7 +363,7 @@ export class MakeAWishWidgetUI {
           position: absolute;
           top: 6px;
           right: 6px;
-          background: rgba(15, 23, 42, 0.75);
+          background: rgba(26, 26, 46, 0.8);
           color: #ffffff;
           border: none;
           border-radius: 9999px;
@@ -329,6 +374,10 @@ export class MakeAWishWidgetUI {
           align-items: center;
           justify-content: center;
           font-size: 12px;
+          transition: background-color 0.15s ease;
+        }
+        .maw-remove-shot:hover {
+          background: #fc3165;
         }
         .maw-footer {
           display: flex;
@@ -342,28 +391,30 @@ export class MakeAWishWidgetUI {
           align-items: center;
           justify-content: center;
           gap: 8px;
-          background: #4f46e5;
+          background: #d42955;
           color: #ffffff;
           border: none;
-          padding: 10px 16px;
-          border-radius: 8px;
-          font-weight: 600;
-          font-size: 13px;
+          padding: 12px 18px;
+          border-radius: 20px;
+          font-family: 'Inter', sans-serif;
+          font-weight: 400;
+          font-size: 14px;
           cursor: pointer;
-          transition: background 0.15s ease;
+          transition: background-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
         }
         .maw-submit-btn:hover:not(:disabled) {
-          background: #4338ca;
+          background: #fc3165;
         }
         .maw-submit-btn:disabled {
-          opacity: 0.6;
+          background: #e5e7eb;
+          color: #9ca3af;
           cursor: not-allowed;
         }
         .maw-error {
           padding: 8px 12px;
           background: #fef2f2;
           border: 1px solid #fecaca;
-          border-radius: 6px;
+          border-radius: 10px;
           color: #dc2626;
           font-size: 12px;
         }
@@ -376,11 +427,11 @@ export class MakeAWishWidgetUI {
           gap: 12px;
         }
         .maw-success-icon {
-          width: 48px;
-          height: 48px;
+          width: 52px;
+          height: 52px;
           border-radius: 9999px;
-          background: #ecfdf5;
-          color: #10b981;
+          background: rgba(252, 49, 101, 0.10);
+          color: #fc3165;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -393,27 +444,34 @@ export class MakeAWishWidgetUI {
           stroke-width: 2.5;
         }
         .maw-success-title {
-          font-weight: 700;
-          font-size: 16px;
-          color: #0f172a;
+          font-family: 'Source Serif 4', 'moderatSerif', Georgia, serif;
+          font-weight: 400;
+          font-size: 20px;
+          letter-spacing: -0.5px;
+          color: #1a1a2e;
         }
         .maw-success-desc {
           font-size: 13px;
-          color: #64748b;
+          color: #6b7280;
+          line-height: 1.5;
         }
         .maw-secondary-btn {
           margin-top: 8px;
-          background: #f1f5f9;
-          color: #334155;
-          border: none;
-          padding: 8px 16px;
-          border-radius: 6px;
-          font-size: 12px;
-          font-weight: 600;
+          background: #f8f9fa;
+          color: #1a1a2e;
+          border: 1px solid #e5e7eb;
+          padding: 8px 18px;
+          border-radius: 20px;
+          font-family: 'Inter', sans-serif;
+          font-size: 13px;
+          font-weight: 500;
           cursor: pointer;
+          transition: all 0.15s ease;
         }
         .maw-secondary-btn:hover {
-          background: #e2e8f0;
+          border-color: #fc3165;
+          color: #fc3165;
+          background: #ffffff;
         }
       </style>
 
@@ -436,6 +494,7 @@ export class MakeAWishWidgetUI {
             ? `style="left:${this.modalPos.x}px;top:${this.modalPos.y}px;right:auto;bottom:auto;animation:none;"`
             : ""
         }>
+          <div class="maw-top-accent"></div>
           <div class="maw-header" id="mawHeader" title="Drag to move">
             <div class="maw-title">
               <span class="maw-drag-handle" aria-hidden="true" title="Drag to move">
@@ -448,7 +507,7 @@ export class MakeAWishWidgetUI {
                   <circle cx="16" cy="18" r="1.5" />
                 </svg>
               </span>
-              <svg style="width:18px;height:18px;color:#4f46e5;fill:none;stroke:currentColor;stroke-width:2;" viewBox="0 0 24 24"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/></svg>
+              <svg class="maw-title-icon" viewBox="0 0 24 24"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/></svg>
               Make a wish
               ${this.config.appId ? `<span class="maw-badge">${this.escapeHtml(this.config.appId)}</span>` : ""}
             </div>
@@ -685,22 +744,23 @@ export class MakeAWishWidgetUI {
     pill.style.top = "20px";
     pill.style.right = "20px";
     pill.style.zIndex = "2147483645";
-    pill.style.background = "#0f172a";
+    pill.style.background = "#1a1a2e";
     pill.style.color = "#ffffff";
     pill.style.padding = "8px 16px";
     pill.style.borderRadius = "9999px";
+    pill.style.border = "1px solid rgba(229, 231, 235, 0.2)";
     pill.style.display = "flex";
     pill.style.alignItems = "center";
     pill.style.gap = "10px";
-    pill.style.boxShadow = "0 10px 15px -3px rgba(0, 0, 0, 0.3)";
-    pill.style.fontFamily = "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif";
+    pill.style.boxShadow = "0 10px 25px -3px rgba(0, 0, 0, 0.35)";
+    pill.style.fontFamily = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
     pill.style.fontSize = "13px";
     pill.style.cursor = "grab";
     pill.style.userSelect = "none";
     pill.style.touchAction = "none";
     pill.title = "Drag to move";
     pill.innerHTML = `
-      <span style="display:inline-flex;align-items:center;color:#94a3b8;cursor:grab;" title="Drag to move">
+      <span style="display:inline-flex;align-items:center;color:#9ca3af;cursor:grab;" title="Drag to move">
         <svg viewBox="0 0 24 24" style="width:12px;height:12px;fill:currentColor;">
           <circle cx="8" cy="6" r="1.5" />
           <circle cx="16" cy="6" r="1.5" />
@@ -711,8 +771,8 @@ export class MakeAWishWidgetUI {
         </svg>
       </span>
       <span id="mawPillText">Click elements to pin (${this.annotations.length})</span>
-      <button type="button" id="mawDoneAnnotateBtn" style="background:#ffffff;color:#0f172a;border:none;padding:4px 12px;border-radius:9999px;font-size:12px;font-weight:600;cursor:pointer;">Done</button>
-      <button type="button" id="mawCancelAnnotateBtn" style="background:transparent;color:#94a3b8;border:none;padding:4px 8px;font-size:12px;cursor:pointer;">Cancel</button>
+      <button type="button" id="mawDoneAnnotateBtn" style="background:#d42955;color:#ffffff;border:none;padding:5px 14px;border-radius:9999px;font-family:'Inter',sans-serif;font-size:12px;font-weight:500;cursor:pointer;">Done</button>
+      <button type="button" id="mawCancelAnnotateBtn" style="background:transparent;color:#9ca3af;border:none;padding:5px 8px;font-family:'Inter',sans-serif;font-size:12px;cursor:pointer;">Cancel</button>
     `;
     document.body.appendChild(pill);
     this.annotationPill = pill;
@@ -762,7 +822,7 @@ export class MakeAWishWidgetUI {
     if (!document.getElementById("maw-hover-style")) {
       const style = document.createElement("style");
       style.id = "maw-hover-style";
-      style.innerHTML = `[data-maw-hover] { outline: 2px solid #6366f1 !important; outline-offset: 2px !important; cursor: crosshair !important; }`;
+      style.innerHTML = `[data-maw-hover] { outline: 2px solid #fc3165 !important; outline-offset: 2px !important; cursor: crosshair !important; }`;
       document.head.appendChild(style);
     }
 
@@ -841,14 +901,15 @@ export class MakeAWishWidgetUI {
     pin.style.width = "24px";
     pin.style.height = "24px";
     pin.style.borderRadius = "9999px";
-    pin.style.background = "#4f46e5";
+    pin.style.background = "#fc3165";
     pin.style.color = "#ffffff";
+    pin.style.fontFamily = "'Inter', -apple-system, sans-serif";
     pin.style.fontSize = "12px";
     pin.style.fontWeight = "700";
     pin.style.display = "flex";
     pin.style.alignItems = "center";
     pin.style.justifyContent = "center";
-    pin.style.boxShadow = "0 0 0 2px #ffffff, 0 4px 6px -1px rgba(0, 0, 0, 0.2)";
+    pin.style.boxShadow = "0 0 0 2px #ffffff, 0 4px 10px rgba(252, 49, 101, 0.4)";
     pin.style.zIndex = "2147483644";
     pin.style.pointerEvents = "none";
     pin.textContent = String(index);

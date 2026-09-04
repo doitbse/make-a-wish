@@ -138,14 +138,14 @@ export async function captureAnnotatedScreenshot(
 
       ctx.beginPath();
       ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fillStyle = "#6366f1";
+      ctx.fillStyle = "#fc3165";
       ctx.fill();
       ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 2 * scale;
       ctx.stroke();
 
       ctx.fillStyle = "#ffffff";
-      ctx.font = `bold ${14 * scale}px Arial, sans-serif`;
+      ctx.font = `bold ${14 * scale}px "Inter", -apple-system, sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(String(i + 1), x, y);

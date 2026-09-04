@@ -6,8 +6,8 @@
  * Renders a floating button that opens a "Make a wish" modal (top-right). Users
  * pick a category, describe the issue, and can annotate elements on the page
  * (hover to highlight, click to select). A full-page screenshot with numbered
- * markers is captured on submit and sent — alongside the selector/text metadata
- * — to a companion triage service (see TRIAGE_SERVICE_URL).
+ * markers is captured on submit and sent (alongside the selector/text metadata)
+ * to a companion triage service (see TRIAGE_SERVICE_URL).
  *
  * This widget is intentionally self-contained so it can be dropped onto any
  * page. It talks to the local /api/feedback route, which forwards to the
@@ -217,7 +217,7 @@ export default function FeedbackWidget() {
 
   return (
     <>
-      <style>{`[data-maw-hover]{outline:2px solid #6366f1!important;outline-offset:2px!important;cursor:crosshair!important;}`}</style>
+      <style>{`[data-maw-hover]{outline:2px solid #fc3165!important;outline-offset:2px!important;cursor:crosshair!important;}`}</style>
 
       {/* Floating launcher button */}
       {!open && (
@@ -225,10 +225,11 @@ export default function FeedbackWidget() {
           type="button"
           onClick={() => setOpen(true)}
           data-maw-chrome
-          aria-label="Make a wish — send feedback"
-          className="fixed bottom-6 right-6 z-[10000] flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 transition hover:scale-105 hover:bg-indigo-700 focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-300"
+          aria-label="Make a wish: send feedback"
+          className="fixed bottom-6 right-6 z-[10000] flex h-12 items-center gap-2 rounded-full bg-[#d42955] px-4 font-medium text-sm text-white shadow-lg shadow-[#d42955]/30 transition hover:scale-105 hover:bg-[#fc3165] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#fc3165]/30"
         >
-          <SparkleIcon className="h-6 w-6" />
+          <SparkleIcon className="h-5 w-5" />
+          <span>Make a wish</span>
         </button>
       )}
 
@@ -247,7 +248,7 @@ export default function FeedbackWidget() {
             <span
               key={i}
               data-maw-chrome
-              className="pointer-events-none fixed z-[9999] flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white ring-2 ring-white"
+              className="pointer-events-none fixed z-[9999] flex h-6 w-6 items-center justify-center rounded-full bg-[#fc3165] text-xs font-bold text-white ring-2 ring-white shadow-md"
               style={{ left: a.rect.x, top: a.rect.y }}
             >
               {i + 1}
@@ -256,11 +257,11 @@ export default function FeedbackWidget() {
           {/* Annotating pill */}
           <div
             data-maw-chrome
-            className="fixed right-4 top-4 z-[10001] flex items-center gap-3 rounded-full bg-slate-900 px-4 py-2 text-sm text-white shadow-lg"
+            className="fixed right-4 top-4 z-[10001] flex items-center gap-3 rounded-full bg-[#1a1a2e] border border-white/10 px-4 py-2 text-sm text-white shadow-xl"
           >
-            <span className="flex items-center gap-1.5">
-              <HighlighterIcon className="h-4 w-4" />
-              Annotating… ({annotations.length})
+            <span className="flex items-center gap-1.5 font-normal">
+              <HighlighterIcon className="h-4 w-4 text-[#fc3165]" />
+              Annotating elements ({annotations.length})
             </span>
             <button
               type="button"
@@ -269,7 +270,7 @@ export default function FeedbackWidget() {
                 const shot = await captureAnnotatedScreenshot(annotations);
                 setScreenshot(shot);
               }}
-              className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-900 hover:bg-slate-100"
+              className="rounded-full bg-[#d42955] px-3.5 py-1 text-xs font-medium text-white hover:bg-[#fc3165] transition"
             >
               Done
             </button>
@@ -287,16 +288,19 @@ export default function FeedbackWidget() {
               ? { left: `${modalPos.x}px`, top: `${modalPos.y}px`, right: "auto", bottom: "auto" }
               : undefined
           }
-          className="fixed right-4 bottom-20 z-[10000] flex max-h-[calc(100vh-6rem)] w-[min(92vw,380px)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl touch-none"
+          className="fixed right-4 bottom-20 z-[10000] flex max-h-[calc(100vh-6rem)] w-[min(92vw,388px)] flex-col overflow-hidden rounded-[18px] border border-[#e5e7eb] bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.05),0_20px_40px_rgba(15,23,42,0.08)] touch-none"
         >
+          {/* Top accent wash */}
+          <div className="h-[3px] w-full shrink-0 bg-gradient-to-r from-[#fc3165]/35 via-[#ff7d9a]/15 to-transparent" />
+
           {/* Header */}
           <div
             onPointerDown={onHeaderPointerDown}
             title="Drag to move"
-            className="flex items-center justify-between border-b border-slate-100 px-4 py-3 cursor-grab select-none active:cursor-grabbing"
+            className="flex items-center justify-between border-b border-[#e5e7eb] bg-white/95 px-4 py-3 cursor-grab select-none active:cursor-grabbing backdrop-blur-sm"
           >
             <div className="flex items-center gap-2">
-              <span className="text-slate-400 flex items-center" aria-hidden="true" title="Drag to move">
+              <span className="text-[#9ca3af] hover:text-[#fc3165] flex items-center transition-colors" aria-hidden="true" title="Drag to move">
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current">
                   <circle cx="8" cy="6" r="1.5" />
                   <circle cx="16" cy="6" r="1.5" />
@@ -306,8 +310,8 @@ export default function FeedbackWidget() {
                   <circle cx="16" cy="18" r="1.5" />
                 </svg>
               </span>
-              <SparkleIcon className="h-4 w-4 text-indigo-600" />
-              <h2 className="text-sm font-semibold text-slate-900">
+              <SparkleIcon className="h-4 w-4 text-[#fc3165]" />
+              <h2 className="font-serif text-[18px] font-normal tracking-[-0.5px] text-[#1a1a2e]">
                 Make a wish
               </h2>
             </div>
@@ -315,7 +319,7 @@ export default function FeedbackWidget() {
               type="button"
               onClick={() => setOpen(false)}
               aria-label="Close"
-              className="text-slate-400 hover:text-slate-600 cursor-pointer"
+              className="rounded-[6.5px] p-1 text-[#9ca3af] hover:bg-[#f8f9fa] hover:text-[#1a1a2e] cursor-pointer transition-colors"
             >
               <CloseIcon className="h-4 w-4" />
             </button>
@@ -342,8 +346,8 @@ export default function FeedbackWidget() {
                         onClick={() => setCategory(c.label)}
                         className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
                           active
-                            ? "border-indigo-600 bg-indigo-600 text-white"
-                            : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                            ? "border-[#fc3165] bg-[#fc3165]/10 text-[#fc3165]"
+                            : "border-[#e5e7eb] bg-white text-[#6b7280] hover:border-[#fc3165]/40 hover:text-[#1a1a2e] hover:bg-[#f8f9fa]"
                         }`}
                       >
                         <span>{c.emoji}</span>
@@ -357,9 +361,9 @@ export default function FeedbackWidget() {
                 <textarea
                   value={text}
                   onChange={(e) => setText(e.target.value)}
-                  placeholder="Tell us more…"
+                  placeholder="Tell us what you would like to see or fix..."
                   rows={4}
-                  className="mt-3 w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                  className="mt-3 w-full resize-none rounded-[10px] border border-[#e5e7eb] px-3 py-2 text-sm text-[#1a1a2e] placeholder:text-[#9ca3af] focus:border-[#fc3165] focus:outline-none focus:ring-2 focus:ring-[#fc3165]/15"
                 />
 
                 {/* Annotation controls */}
@@ -367,9 +371,9 @@ export default function FeedbackWidget() {
                   <button
                     type="button"
                     onClick={() => setAnnotating(true)}
-                    className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-300"
+                    className="flex items-center gap-1.5 rounded-[6.5px] border border-[#e5e7eb] bg-white px-3 py-1.5 text-xs font-medium text-[#1a1a2e] hover:border-[#fc3165] hover:text-[#fc3165] transition"
                   >
-                    <HighlighterIcon className="h-4 w-4" />
+                    <HighlighterIcon className="h-4 w-4 text-[#fc3165]" />
                     {annotations.length > 0
                       ? `Annotate (${annotations.length})`
                       : "Annotate screen"}
@@ -382,16 +386,16 @@ export default function FeedbackWidget() {
                     {annotations.map((a, i) => (
                       <li
                         key={i}
-                        className="flex items-start gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs"
+                        className="flex items-start gap-2 rounded-[10px] border border-[#e5e7eb] bg-[#f8f9fa] px-2.5 py-1.5 text-xs"
                       >
-                        <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white">
+                        <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#fc3165] text-[10px] font-bold text-white">
                           {i + 1}
                         </span>
                         <div className="min-w-0 flex-1">
-                          <code className="block truncate font-mono text-[11px] text-indigo-700">
+                          <code className="block truncate font-mono text-[11px] text-[#fc3165]">
                             {a.hint}
                           </code>
-                          <p className="truncate text-slate-500">{a.text}</p>
+                          <p className="truncate text-[#6b7280]">{a.text}</p>
                         </div>
                         <button
                           type="button"
@@ -401,7 +405,7 @@ export default function FeedbackWidget() {
                             )
                           }
                           aria-label="Remove annotation"
-                          className="text-slate-300 hover:text-red-500"
+                          className="text-[#9ca3af] hover:text-[#dc2626]"
                         >
                           <CloseIcon className="h-3.5 w-3.5" />
                         </button>
@@ -413,20 +417,20 @@ export default function FeedbackWidget() {
                 {/* Screenshot thumbnail */}
                 {screenshot && (
                   <div className="mt-3">
-                    <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                    <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-[#9ca3af]">
                       Screenshot
                     </p>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={screenshot}
                       alt="Annotated screenshot"
-                      className="w-full rounded-lg border border-slate-200"
+                      className="w-full rounded-[10px] border border-[#e5e7eb]"
                     />
                   </div>
                 )}
 
                 {error && (
-                  <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+                  <p className="mt-3 rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
                     {error}
                   </p>
                 )}
@@ -436,14 +440,14 @@ export default function FeedbackWidget() {
 
           {/* Footer */}
           {phase !== "done" && (
-            <div className="border-t border-slate-100 px-4 py-3">
+            <div className="border-t border-[#e5e7eb] px-4 py-3">
               <button
                 type="button"
                 onClick={handleSubmit}
                 disabled={!canSubmit}
-                className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+                className="w-full rounded-full bg-[#d42955] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#fc3165] disabled:cursor-not-allowed disabled:bg-[#e5e7eb] disabled:text-[#9ca3af]"
               >
-                {phase === "submitting" ? "Sending…" : "Send wish"}
+                {phase === "submitting" ? "Sending..." : "Send wish"}
               </button>
             </div>
           )}
@@ -467,14 +471,14 @@ function SuccessPanel({
   return (
     <div className="py-2">
       <div className="flex flex-col items-center text-center">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 text-green-600">
-          <CheckIcon className="h-5 w-5" />
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#fc3165]/10 text-[#fc3165]">
+          <CheckIcon className="h-6 w-6" />
         </div>
-        <p className="mt-2 text-sm font-semibold text-slate-900">
+        <p className="mt-3 font-serif text-[18px] font-normal tracking-[-0.5px] text-[#1a1a2e]">
           Thanks! Your wish was received.
         </p>
         {!result && (
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-[#6b7280]">
             Our autonomous AI agent is triaging the codebase in the background.
           </p>
         )}
@@ -484,18 +488,18 @@ function SuccessPanel({
         <TriageVerdict result={result} />
       )}
 
-      <div className="mt-4 flex gap-2">
+      <div className="mt-5 flex gap-2">
         <button
           type="button"
           onClick={onSendAnother}
-          className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-300"
+          className="flex-1 rounded-full border border-[#e5e7eb] bg-[#f8f9fa] px-3.5 py-2 text-xs font-medium text-[#1a1a2e] hover:border-[#fc3165] hover:text-[#fc3165] transition"
         >
           Send another
         </button>
         <button
           type="button"
           onClick={onClose}
-          className="flex-1 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+          className="flex-1 rounded-full bg-[#d42955] px-3.5 py-2 text-xs font-medium text-white hover:bg-[#fc3165] transition"
         >
           Done
         </button>
@@ -536,23 +540,23 @@ function TriageVerdict({ result }: { result: TriageResult }) {
     rows.push({ k: "confidence", v: `${Math.round(confidence * 100)}%` });
 
   return (
-    <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs">
-      <p className="mb-1.5 flex items-center gap-1.5 font-semibold text-slate-700">
+    <div className="mt-3 rounded-[10px] border border-[#e5e7eb] bg-[#f8f9fa] p-3 text-xs">
+      <p className="mb-1.5 flex items-center gap-1.5 font-semibold text-[#1a1a2e]">
         Triage agent
         {mode && (
-          <span className="rounded-full bg-slate-200 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+          <span className="rounded-full bg-[#e5e7eb] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[#6b7280]">
             {mode}
           </span>
         )}
       </p>
-      {title && <p className="mb-1 font-medium text-slate-900">{title}</p>}
-      {summary && <p className="mb-1.5 text-slate-600">{summary}</p>}
+      {title && <p className="mb-1 font-medium text-[#1a1a2e]">{title}</p>}
+      {summary && <p className="mb-1.5 text-[#6b7280]">{summary}</p>}
       {rows.length > 0 && (
         <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
           {rows.map((r) => (
             <div key={r.k} className="contents">
-              <dt className="text-slate-400">{r.k}</dt>
-              <dd className="text-slate-700">{r.v}</dd>
+              <dt className="text-[#9ca3af]">{r.k}</dt>
+              <dd className="text-[#1a1a2e]">{r.v}</dd>
             </div>
           ))}
         </dl>
@@ -562,7 +566,7 @@ function TriageVerdict({ result }: { result: TriageResult }) {
           {labels.map((l) => (
             <span
               key={l}
-              className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-medium text-indigo-700"
+              className="rounded-full bg-[#fc3165]/10 px-2 py-0.5 text-[10px] font-medium text-[#fc3165]"
             >
               {l}
             </span>
