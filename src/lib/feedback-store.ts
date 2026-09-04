@@ -26,6 +26,7 @@ function getFirestoreClient(): Firestore | null {
       firestoreInstance = new Firestore({
         projectId,
         databaseId: "(default)",
+        ignoreUndefinedProperties: true,
       });
     } catch (err) {
       console.error("[feedback-store] Failed to initialize Firestore:", err);
@@ -73,9 +74,9 @@ export async function saveFeedback(
         category: record.category,
         text: record.text,
         annotations: record.annotations || [],
-        url: record.url,
-        userAgent: record.userAgent,
-        timestamp: record.timestamp,
+        url: record.url ?? null,
+        userAgent: record.userAgent ?? null,
+        timestamp: record.timestamp || new Date().toISOString(),
         storedAt: record.storedAt,
         triage: record.triage || null,
         triageError: record.triageError || null,
