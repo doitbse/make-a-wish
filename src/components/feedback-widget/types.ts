@@ -17,6 +17,9 @@ export interface Annotation {
 }
 
 export interface FeedbackSubmission {
+  appId?: string;
+  repo?: string;
+  userEmail?: string;
   category: Category;
   text: string;
   annotations: Annotation[];

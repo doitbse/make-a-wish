@@ -10,6 +10,19 @@ import {
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Make-A-Wish-App",
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: CORS_HEADERS,
+  });
+}
+
 /**
  * Background worker to run Gemini agent triage asynchronously.
  * Keeps user response time < 150ms and prevents HTTP connection timeouts.
@@ -68,7 +81,7 @@ export async function POST(req: NextRequest) {
   try {
     body = (await req.json()) as FeedbackSubmission;
   } catch {
-    return NextResponse.json({ ok: false, error: "invalid json" }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "invalid json" }, { status: 400, headers: CORS_HEADERS });
   }
 
   // 1. Immediately persist to Firestore / local backup
@@ -94,22 +107,25 @@ export async function POST(req: NextRequest) {
   }
 
   // 3. Return immediate 200 OK so client sees instant confirmation
-  return NextResponse.json({
-    ok: true,
-    stored: true,
-    id: savedRecord?.id,
-    source: savedRecord?.source,
-    status: "pending_triage",
-  });
+  return NextResponse.json(
+    {
+      ok: true,
+      stored: true,
+      id: savedRecord?.id,
+      source: savedRecord?.source,
+      status: "pending_triage",
+    },
+    { headers: CORS_HEADERS },
+  );
 }
 
 /** Returns stored submissions from Firestore / local backup. */
 export async function GET() {
   try {
     const list = await getFeedbackList();
-    return NextResponse.json(list);
+    return NextResponse.json(list, { headers: CORS_HEADERS });
   } catch (err) {
     console.error("[make-a-wish] failed to fetch feedback list:", err);
-    return NextResponse.json([], { status: 500 });
+    return NextResponse.json([], { status: 500, headers: CORS_HEADERS });
   }
 }

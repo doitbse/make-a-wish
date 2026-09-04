@@ -73,6 +73,9 @@ export async function saveFeedback(
       // Deep copy and guard against oversized screenshot if >800KB
       const docPayload: Record<string, unknown> = {
         id,
+        appId: record.appId || null,
+        repo: record.repo || null,
+        userEmail: record.userEmail || null,
         category: record.category,
         text: record.text,
         annotations: record.annotations || [],

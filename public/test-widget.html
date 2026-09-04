@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Host App Simulation - Candidate Screener</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 40px;
+      background: #f8fafc;
+      color: #1e293b;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 32px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+    header {
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+    }
+    h1 {
+      margin: 0 0 8px 0;
+      font-size: 24px;
+      color: #0f172a;
+    }
+    .badge {
+      display: inline-block;
+      background: #e0f2fe;
+      color: #0369a1;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .card {
+      border: 1px solid #e2e8f0;
+      padding: 16px;
+      border-radius: 8px;
+      background: #fafafa;
+    }
+    .card h3 {
+      margin-top: 0;
+      font-size: 16px;
+    }
+    button.sample-action {
+      background: #2563eb;
+      color: #ffffff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Candidate Screener <span class="badge">Production v2.4</span></h1>
+      <p style="color: #64748b; margin: 0;">Automated candidate screening and AI technical interview evaluations.</p>
+    </header>
+
+    <main>
+      <h2>Candidate Pipeline</h2>
+      <div class="grid">
+        <div class="card" id="candidate-1">
+          <h3>Alice Smith</h3>
+          <p>Role: Staff AI Engineer</p>
+          <button type="button" class="sample-action" id="view-profile-btn">View Profile</button>
+        </div>
+        <div class="card" id="candidate-2">
+          <h3>Bob Johnson</h3>
+          <p>Role: Principal Data Architect</p>
+          <button type="button" class="sample-action">Schedule Interview</button>
+        </div>
+        <div class="card" id="candidate-3">
+          <h3>Charlie Davis</h3>
+          <p>Role: Solutions Architect</p>
+          <button type="button" class="sample-action">Generate Report</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Make-a-Wish Embedded Widget -->
+  <script src="/widget.js" data-app="candidate-screener" data-repo="doitbse/candidate-screener"></script>
+</body>
+</html>
