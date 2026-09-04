@@ -48,6 +48,7 @@ export default function FeedbackWidget() {
 
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const modalRef = useRef<HTMLDivElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const onHeaderPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if ((e.target as HTMLElement).closest("button")) return;
@@ -140,15 +141,31 @@ export default function FeedbackWidget() {
           height: rect.height,
         },
       };
-      setAnnotations((prev) => [...prev, annotation]);
+      setAnnotations((prev) => {
+        const next = [...prev, annotation];
+        const count = next.length;
+        setText((currentText) => {
+          if (count === 1) {
+            if (!currentText.trim()) return "(1) ";
+            if (!currentText.includes("(1)")) return currentText.trimEnd() + "\n(1) ";
+            return currentText;
+          }
+          if (!currentText.includes(`(${count})`)) {
+            return currentText.trimEnd() + `\n(${count}) `;
+          }
+          return currentText;
+        });
+        return next;
+      });
     },
     [probe],
   );
 
   // ---------- Submit ----------
 
+  const meaningfulText = text.replace(/\(\d+\)\s*/g, "").trim();
   const canSubmit =
-    phase !== "submitting" && category !== null && text.trim().length > 0;
+    phase !== "submitting" && category !== null && meaningfulText.length > 0;
 
   const handleSubmit = useCallback(async () => {
     if (!canSubmit) return;
@@ -269,6 +286,13 @@ export default function FeedbackWidget() {
                 await exitAnnotation();
                 const shot = await captureAnnotatedScreenshot(annotations);
                 setScreenshot(shot);
+                setTimeout(() => {
+                  if (textareaRef.current) {
+                    textareaRef.current.focus();
+                    const len = textareaRef.current.value.length;
+                    textareaRef.current.setSelectionRange(len, len);
+                  }
+                }, 50);
               }}
               className="rounded-full bg-[#d42955] px-3.5 py-1 text-xs font-medium text-white hover:bg-[#fc3165] transition"
             >
@@ -359,6 +383,7 @@ export default function FeedbackWidget() {
 
                 {/* Free text */}
                 <textarea
+                  ref={textareaRef}
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   placeholder="Tell us what you would like to see or fix..."
@@ -370,7 +395,12 @@ export default function FeedbackWidget() {
                 <div className="mt-2 flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setAnnotating(true)}
+                    onClick={() => {
+                      if (!text.trim()) {
+                        setText("(1) ");
+                      }
+                      setAnnotating(true);
+                    }}
                     className="flex items-center gap-1.5 rounded-[6.5px] border border-[#e5e7eb] bg-white px-3 py-1.5 text-xs font-medium text-[#1a1a2e] hover:border-[#fc3165] hover:text-[#fc3165] transition"
                   >
                     <HighlighterIcon className="h-4 w-4 text-[#fc3165]" />

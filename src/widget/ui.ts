@@ -65,6 +65,7 @@ export class MakeAWishWidgetUI {
   private screenshotDataUrl: string | null = null;
   private errorMessage: string | null = null;
   private modalPos: { x: number; y: number } | null = null;
+  private shouldFocusTextarea = false;
 
   // External DOM elements for annotation
   private annotationOverlay: HTMLDivElement | null = null;
@@ -96,6 +97,11 @@ export class MakeAWishWidgetUI {
   public updateConfig(newConfig: Partial<WidgetConfig>) {
     this.config = { ...this.config, ...newConfig };
     this.render();
+  }
+
+  private hasMeaningfulText(): boolean {
+    const stripped = this.textValue.replace(/\(\d+\)\s*/g, "").trim();
+    return stripped.length > 0;
   }
 
   private render() {
@@ -575,7 +581,7 @@ export class MakeAWishWidgetUI {
                   type="button"
                   class="maw-submit-btn"
                   id="mawSubmitBtn"
-                  ${this.isSubmitting || !this.textValue.trim() ? "disabled" : ""}
+                  ${this.isSubmitting || !this.hasMeaningfulText() ? "disabled" : ""}
                 >
                   ${this.isSubmitting ? "Submitting wish..." : "Send wish ✨"}
                 </button>
@@ -676,11 +682,20 @@ export class MakeAWishWidgetUI {
 
     const textarea = this.root.getElementById("mawTextInput") as HTMLTextAreaElement | null;
     if (textarea) {
+      if (this.shouldFocusTextarea) {
+        this.shouldFocusTextarea = false;
+        setTimeout(() => {
+          textarea.focus();
+          const len = textarea.value.length;
+          textarea.setSelectionRange(len, len);
+        }, 50);
+      }
+
       textarea.addEventListener("input", (e) => {
         this.textValue = (e.target as HTMLTextAreaElement).value;
         const submitBtn = this.root.getElementById("mawSubmitBtn") as HTMLButtonElement | null;
         if (submitBtn) {
-          submitBtn.disabled = this.isSubmitting || !this.textValue.trim();
+          submitBtn.disabled = this.isSubmitting || !this.hasMeaningfulText();
         }
       });
     }
@@ -697,6 +712,9 @@ export class MakeAWishWidgetUI {
       removeShotBtn.addEventListener("click", () => {
         this.screenshotDataUrl = null;
         this.annotations = [];
+        if (this.textValue === "(1) ") {
+          this.textValue = "";
+        }
         this.render();
       });
     }
@@ -724,6 +742,9 @@ export class MakeAWishWidgetUI {
 
   private startAnnotationMode() {
     this.isAnnotating = true;
+    if (!this.textValue.trim()) {
+      this.textValue = "(1) ";
+    }
     this.render();
 
     // Create full-screen transparent click/probe overlay
@@ -875,6 +896,19 @@ export class MakeAWishWidgetUI {
       if (pillText) {
         pillText.textContent = `Click elements to pin (${this.annotations.length})`;
       }
+
+      const count = this.annotations.length;
+      if (count === 1) {
+        if (!this.textValue.trim()) {
+          this.textValue = "(1) ";
+        } else if (!this.textValue.includes("(1)")) {
+          this.textValue = this.textValue.trimEnd() + "\n(1) ";
+        }
+      } else if (count > 1) {
+        if (!this.textValue.includes(`(${count})`)) {
+          this.textValue = this.textValue.trimEnd() + `\n(${count}) `;
+        }
+      }
     };
 
     const doneBtn = pill.querySelector("#mawDoneAnnotateBtn");
@@ -938,7 +972,23 @@ export class MakeAWishWidgetUI {
     if (saveScreenshot) {
       const shot = await captureAnnotatedScreenshot(this.annotations);
       this.screenshotDataUrl = shot;
+      if (this.annotations.length > 0) {
+        if (!this.textValue.trim()) {
+          this.textValue = "(1) ";
+        } else if (!this.textValue.includes("(1)")) {
+          this.textValue = this.textValue.trimEnd() + "\n(1) ";
+        }
+        for (let i = 2; i <= this.annotations.length; i++) {
+          if (!this.textValue.includes(`(${i})`)) {
+            this.textValue = this.textValue.trimEnd() + `\n(${i}) `;
+          }
+        }
+      }
+      this.shouldFocusTextarea = true;
     } else {
+      if (this.textValue === "(1) ") {
+        this.textValue = "";
+      }
       this.annotations = [];
     }
 
@@ -947,7 +997,7 @@ export class MakeAWishWidgetUI {
   }
 
   private async submitFeedback() {
-    if (!this.textValue.trim() || this.isSubmitting) return;
+    if (!this.hasMeaningfulText() || this.isSubmitting) return;
 
     this.isSubmitting = true;
     this.errorMessage = null;
