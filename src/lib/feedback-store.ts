@@ -75,6 +75,7 @@ export async function saveFeedback(
         id,
         appId: record.appId || null,
         repo: record.repo || null,
+        repos: record.repos || (record.repo ? [record.repo] : []),
         userEmail: record.userEmail || null,
         category: record.category,
         text: record.text,

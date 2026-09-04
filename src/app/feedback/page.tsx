@@ -276,6 +276,35 @@ export default function FeedbackBoardPage() {
                           📁 Local File
                         </span>
                       )}
+                      {item.appId && (
+                        <span className="rounded-md bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700">
+                          app: <strong>{item.appId}</strong>
+                        </span>
+                      )}
+                      {(item.repos && item.repos.length > 0) ? (
+                        <div className="flex flex-wrap items-center gap-1">
+                          {item.repos.map((r) => {
+                            const isTarget = triage?.target_repo === r;
+                            return (
+                              <span
+                                key={r}
+                                className={`rounded-md px-2 py-0.5 text-xs font-mono ${
+                                  isTarget
+                                    ? "bg-green-100 text-green-800 font-semibold border border-green-300"
+                                    : "bg-slate-100 text-slate-700 border border-slate-200"
+                                }`}
+                                title={isTarget ? "Agent-selected target repository for PR" : "Related application repository"}
+                              >
+                                {isTarget ? "✓ " : ""}{r}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      ) : item.repo ? (
+                        <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-700 border border-slate-200">
+                          {item.repo}
+                        </span>
+                      ) : null}
                     </div>
                     <span className="text-[11px] text-slate-400">
                       {new Date(item.storedAt || item.timestamp).toLocaleString()}

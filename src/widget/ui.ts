@@ -3,9 +3,44 @@ import { Annotation, buildSelector, captureAnnotatedScreenshot, describeElement,
 export interface WidgetConfig {
   appId: string;
   repo: string;
+  repos?: string[];
   apiUrl: string;
   userEmail?: string;
   position?: "bottom-right" | "bottom-left";
+}
+
+export function parseRepos(reposAttr?: string | null, repoAttr?: string | null): string[] {
+  const result: string[] = [];
+  const parseRaw = (val?: string | null) => {
+    if (!val) return;
+    const trimmed = val.trim();
+    if (!trimmed) return;
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          for (const item of parsed) {
+            if (typeof item === "string" && item.trim()) {
+              result.push(item.trim());
+            }
+          }
+          return;
+        }
+      } catch {
+        // Fall back to comma splitting
+      }
+    }
+    for (const part of trimmed.split(",")) {
+      const clean = part.trim();
+      if (clean && !result.includes(clean)) {
+        result.push(clean);
+      }
+    }
+  };
+
+  parseRaw(reposAttr);
+  parseRaw(repoAttr);
+  return Array.from(new Set(result));
 }
 
 export type Category = "Bug" | "Idea" | "Question" | "Praise";
@@ -699,9 +734,15 @@ export class MakeAWishWidgetUI {
       this.screenshotDataUrl = shot;
     }
 
+    const repos = (this.config.repos && this.config.repos.length > 0)
+      ? this.config.repos
+      : (this.config.repo ? [this.config.repo] : []);
+    const primaryRepo = repos[0] || this.config.repo || "";
+
     const payload = {
       appId: this.config.appId || "default-app",
-      repo: this.config.repo || "",
+      repo: primaryRepo,
+      repos: repos,
       category: this.selectedCategory,
       text: this.textValue.trim(),
       annotations: this.annotations,
