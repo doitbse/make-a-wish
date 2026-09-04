@@ -64,6 +64,7 @@ export class MakeAWishWidgetUI {
   private annotations: Annotation[] = [];
   private screenshotDataUrl: string | null = null;
   private errorMessage: string | null = null;
+  private modalPos: { x: number; y: number } | null = null;
 
   // External DOM elements for annotation
   private annotationOverlay: HTMLDivElement | null = null;
@@ -74,6 +75,21 @@ export class MakeAWishWidgetUI {
   constructor(root: ShadowRoot, config: WidgetConfig) {
     this.root = root;
     this.config = config;
+    window.addEventListener("resize", () => {
+      if (this.modalPos && this.isOpen) {
+        const modal = this.root.querySelector(".maw-modal") as HTMLElement | null;
+        if (modal) {
+          const rect = modal.getBoundingClientRect();
+          const pad = 8;
+          const maxLeft = Math.max(pad, window.innerWidth - rect.width - pad);
+          const maxTop = Math.max(pad, window.innerHeight - rect.height - pad);
+          this.modalPos.x = Math.max(pad, Math.min(maxLeft, this.modalPos.x));
+          this.modalPos.y = Math.max(pad, Math.min(maxTop, this.modalPos.y));
+          modal.style.left = `${this.modalPos.x}px`;
+          modal.style.top = `${this.modalPos.y}px`;
+        }
+      }
+    });
     this.render();
   }
 
@@ -142,6 +158,12 @@ export class MakeAWishWidgetUI {
           display: flex;
           flex-direction: column;
           animation: maw-pop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+          touch-action: none;
+        }
+        .maw-modal.is-dragging {
+          user-select: none;
+          -webkit-user-select: none;
+          box-shadow: 0 25px 35px -5px rgba(0, 0, 0, 0.2), 0 12px 16px -6px rgba(0, 0, 0, 0.15);
         }
         @keyframes maw-pop {
           from { opacity: 0; transform: scale(0.96) translateY(8px); }
@@ -151,8 +173,26 @@ export class MakeAWishWidgetUI {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 14px 16px;
+          padding: 12px 16px;
           border-bottom: 1px solid #f1f5f9;
+          cursor: grab;
+          user-select: none;
+          -webkit-user-select: none;
+        }
+        .maw-header:active,
+        .maw-modal.is-dragging .maw-header {
+          cursor: grabbing;
+        }
+        .maw-drag-handle {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          color: #94a3b8;
+          margin-right: 2px;
+          cursor: grab;
+        }
+        .maw-header:hover .maw-drag-handle {
+          color: #64748b;
         }
         .maw-title {
           display: flex;
@@ -391,9 +431,23 @@ export class MakeAWishWidgetUI {
       ${
         this.isOpen && !this.isAnnotating
           ? `
-        <div class="maw-modal" data-maw-chrome>
-          <div class="maw-header">
+        <div class="maw-modal" data-maw-chrome ${
+          this.modalPos
+            ? `style="left:${this.modalPos.x}px;top:${this.modalPos.y}px;right:auto;bottom:auto;animation:none;"`
+            : ""
+        }>
+          <div class="maw-header" id="mawHeader" title="Drag to move">
             <div class="maw-title">
+              <span class="maw-drag-handle" aria-hidden="true" title="Drag to move">
+                <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor;">
+                  <circle cx="8" cy="6" r="1.5" />
+                  <circle cx="16" cy="6" r="1.5" />
+                  <circle cx="8" cy="12" r="1.5" />
+                  <circle cx="16" cy="12" r="1.5" />
+                  <circle cx="8" cy="18" r="1.5" />
+                  <circle cx="16" cy="18" r="1.5" />
+                </svg>
+              </span>
               <svg style="width:18px;height:18px;color:#4f46e5;fill:none;stroke:currentColor;stroke-width:2;" viewBox="0 0 24 24"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/></svg>
               Make a wish
               ${this.config.appId ? `<span class="maw-badge">${this.escapeHtml(this.config.appId)}</span>` : ""}
@@ -496,6 +550,62 @@ export class MakeAWishWidgetUI {
       });
     }
 
+    const header = this.root.getElementById("mawHeader");
+    const modal = this.root.querySelector(".maw-modal") as HTMLElement | null;
+    if (header && modal) {
+      header.addEventListener("pointerdown", (e: PointerEvent) => {
+        if ((e.target as HTMLElement).closest("button")) {
+          return;
+        }
+        if (e.button !== 0) return;
+
+        e.preventDefault();
+        const rect = modal.getBoundingClientRect();
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const initialLeft = rect.left;
+        const initialTop = rect.top;
+
+        modal.classList.add("is-dragging");
+        modal.style.left = `${initialLeft}px`;
+        modal.style.top = `${initialTop}px`;
+        modal.style.right = "auto";
+        modal.style.bottom = "auto";
+        modal.style.animation = "none";
+        this.modalPos = { x: initialLeft, y: initialTop };
+
+        const onPointerMove = (moveEv: PointerEvent) => {
+          const dx = moveEv.clientX - startX;
+          const dy = moveEv.clientY - startY;
+
+          let newLeft = initialLeft + dx;
+          let newTop = initialTop + dy;
+
+          const pad = 8;
+          const maxLeft = Math.max(pad, window.innerWidth - rect.width - pad);
+          const maxTop = Math.max(pad, window.innerHeight - rect.height - pad);
+
+          newLeft = Math.max(pad, Math.min(maxLeft, newLeft));
+          newTop = Math.max(pad, Math.min(maxTop, newTop));
+
+          modal.style.left = `${newLeft}px`;
+          modal.style.top = `${newTop}px`;
+          this.modalPos = { x: newLeft, y: newTop };
+        };
+
+        const onPointerUp = () => {
+          modal.classList.remove("is-dragging");
+          window.removeEventListener("pointermove", onPointerMove);
+          window.removeEventListener("pointerup", onPointerUp);
+          window.removeEventListener("pointercancel", onPointerUp);
+        };
+
+        window.addEventListener("pointermove", onPointerMove);
+        window.addEventListener("pointerup", onPointerUp);
+        window.addEventListener("pointercancel", onPointerUp);
+      });
+    }
+
     const chips = this.root.querySelectorAll(".maw-chip");
     chips.forEach((chip) => {
       chip.addEventListener("click", (e) => {
@@ -581,17 +691,72 @@ export class MakeAWishWidgetUI {
     pill.style.borderRadius = "9999px";
     pill.style.display = "flex";
     pill.style.alignItems = "center";
-    pill.style.gap = "12px";
+    pill.style.gap = "10px";
     pill.style.boxShadow = "0 10px 15px -3px rgba(0, 0, 0, 0.3)";
     pill.style.fontFamily = "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif";
     pill.style.fontSize = "13px";
+    pill.style.cursor = "grab";
+    pill.style.userSelect = "none";
+    pill.style.touchAction = "none";
+    pill.title = "Drag to move";
     pill.innerHTML = `
+      <span style="display:inline-flex;align-items:center;color:#94a3b8;cursor:grab;" title="Drag to move">
+        <svg viewBox="0 0 24 24" style="width:12px;height:12px;fill:currentColor;">
+          <circle cx="8" cy="6" r="1.5" />
+          <circle cx="16" cy="6" r="1.5" />
+          <circle cx="8" cy="12" r="1.5" />
+          <circle cx="16" cy="12" r="1.5" />
+          <circle cx="8" cy="18" r="1.5" />
+          <circle cx="16" cy="18" r="1.5" />
+        </svg>
+      </span>
       <span id="mawPillText">Click elements to pin (${this.annotations.length})</span>
       <button type="button" id="mawDoneAnnotateBtn" style="background:#ffffff;color:#0f172a;border:none;padding:4px 12px;border-radius:9999px;font-size:12px;font-weight:600;cursor:pointer;">Done</button>
       <button type="button" id="mawCancelAnnotateBtn" style="background:transparent;color:#94a3b8;border:none;padding:4px 8px;font-size:12px;cursor:pointer;">Cancel</button>
     `;
     document.body.appendChild(pill);
     this.annotationPill = pill;
+
+    pill.addEventListener("pointerdown", (e: PointerEvent) => {
+      if ((e.target as HTMLElement).closest("button")) return;
+      if (e.button !== 0) return;
+      e.preventDefault();
+      pill.style.cursor = "grabbing";
+
+      const rect = pill.getBoundingClientRect();
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const initialLeft = rect.left;
+      const initialTop = rect.top;
+
+      pill.style.left = `${initialLeft}px`;
+      pill.style.top = `${initialTop}px`;
+      pill.style.right = "auto";
+      pill.style.bottom = "auto";
+
+      const onPillMove = (moveEv: PointerEvent) => {
+        const dx = moveEv.clientX - startX;
+        const dy = moveEv.clientY - startY;
+        let nx = initialLeft + dx;
+        let ny = initialTop + dy;
+        const pad = 8;
+        nx = Math.max(pad, Math.min(window.innerWidth - rect.width - pad, nx));
+        ny = Math.max(pad, Math.min(window.innerHeight - rect.height - pad, ny));
+        pill.style.left = `${nx}px`;
+        pill.style.top = `${ny}px`;
+      };
+
+      const onPillUp = () => {
+        pill.style.cursor = "grab";
+        window.removeEventListener("pointermove", onPillMove);
+        window.removeEventListener("pointerup", onPillUp);
+        window.removeEventListener("pointercancel", onPillUp);
+      };
+
+      window.addEventListener("pointermove", onPillMove);
+      window.addEventListener("pointerup", onPillUp);
+      window.addEventListener("pointercancel", onPillUp);
+    });
 
     // Attach outline style helper to document
     if (!document.getElementById("maw-hover-style")) {

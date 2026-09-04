@@ -44,8 +44,47 @@ export default function FeedbackWidget() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [result, setResult] = useState<TriageResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [modalPos, setModalPos] = useState<{ x: number; y: number } | null>(null);
 
   const overlayRef = useRef<HTMLDivElement | null>(null);
+  const modalRef = useRef<HTMLDivElement | null>(null);
+
+  const onHeaderPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest("button")) return;
+    if (e.button !== 0) return;
+    e.preventDefault();
+
+    const modal = modalRef.current;
+    if (!modal) return;
+    const rect = modal.getBoundingClientRect();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const initialLeft = rect.left;
+    const initialTop = rect.top;
+
+    const onPointerMove = (moveEv: PointerEvent) => {
+      const dx = moveEv.clientX - startX;
+      const dy = moveEv.clientY - startY;
+      let newLeft = initialLeft + dx;
+      let newTop = initialTop + dy;
+      const pad = 8;
+      const maxLeft = Math.max(pad, window.innerWidth - rect.width - pad);
+      const maxTop = Math.max(pad, window.innerHeight - rect.height - pad);
+      newLeft = Math.max(pad, Math.min(maxLeft, newLeft));
+      newTop = Math.max(pad, Math.min(maxTop, newTop));
+      setModalPos({ x: newLeft, y: newTop });
+    };
+
+    const onPointerUp = () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
+    };
+
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
+  }, []);
 
   // ---------- Annotation mode ----------
 
@@ -241,12 +280,32 @@ export default function FeedbackWidget() {
       {/* Main modal */}
       {open && !annotating && (
         <div
+          ref={modalRef}
           data-maw-chrome
-          className="fixed right-4 top-4 z-[10000] flex max-h-[calc(100vh-2rem)] w-[min(92vw,380px)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+          style={
+            modalPos
+              ? { left: `${modalPos.x}px`, top: `${modalPos.y}px`, right: "auto", bottom: "auto" }
+              : undefined
+          }
+          className="fixed right-4 bottom-20 z-[10000] flex max-h-[calc(100vh-6rem)] w-[min(92vw,380px)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl touch-none"
         >
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+          <div
+            onPointerDown={onHeaderPointerDown}
+            title="Drag to move"
+            className="flex items-center justify-between border-b border-slate-100 px-4 py-3 cursor-grab select-none active:cursor-grabbing"
+          >
             <div className="flex items-center gap-2">
+              <span className="text-slate-400 flex items-center" aria-hidden="true" title="Drag to move">
+                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current">
+                  <circle cx="8" cy="6" r="1.5" />
+                  <circle cx="16" cy="6" r="1.5" />
+                  <circle cx="8" cy="12" r="1.5" />
+                  <circle cx="16" cy="12" r="1.5" />
+                  <circle cx="8" cy="18" r="1.5" />
+                  <circle cx="16" cy="18" r="1.5" />
+                </svg>
+              </span>
               <SparkleIcon className="h-4 w-4 text-indigo-600" />
               <h2 className="text-sm font-semibold text-slate-900">
                 Make a wish
@@ -256,7 +315,7 @@ export default function FeedbackWidget() {
               type="button"
               onClick={() => setOpen(false)}
               aria-label="Close"
-              className="text-slate-400 hover:text-slate-600"
+              className="text-slate-400 hover:text-slate-600 cursor-pointer"
             >
               <CloseIcon className="h-4 w-4" />
             </button>
