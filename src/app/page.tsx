@@ -1,4 +1,8 @@
+"use client";
+
+import { useState } from "react";
 import FeedbackWidget from "@/components/feedback-widget/FeedbackWidget";
+import Link from "next/link";
 
 /**
  * Sample product surface ("Acme Analytics") used to exercise the feedback
@@ -26,7 +30,49 @@ const ROWS = [
   { plan: "Pro", users: "377", mrr: "$7,540", status: "Active" },
 ];
 
-export default function Home() {
+export default function Home() { 
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [rows, setRows] = useState(ROWS);
+  const [bars, setBars] = useState(BARS);
+  const [statusFilter, setStatusFilter] = useState("All");
+
+  const filteredRows = rows.filter((r) => {
+    if (statusFilter === "All") return true;
+    return r.status === statusFilter;
+  });
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    setTimeout(() => {
+      // Slightly randomize values to simulate loading actual data
+      setRows((prevRows) =>
+        prevRows.map((r) => {
+          if (r.users === "—") return r;
+          const currentUsers = parseInt(r.users.replace(/,/g, ""), 10);
+          if (isNaN(currentUsers)) return r;
+          const nextUsers = Math.max( 
+            1,
+            currentUsers + Math.floor(Math.random() * 21) - 10
+          );
+          const perUserCost =
+            r.plan === "Starter" ? 4 : r.plan === "Pro" ? 20 : 2000;
+          const nextMrr = nextUsers * perUserCost;
+          return {
+            ...r,
+            users: nextUsers.toLocaleString(),
+            mrr: `$${nextMrr.toLocaleString()}`,
+          };
+        })
+      );
+      setBars((prevBars) =>
+        prevBars.map((b) =>
+          Math.min(100, Math.max(10, b + Math.floor(Math.random() * 11) - 5))
+        )
+      );
+      setIsRefreshing(false);
+    }, 800);
+  };
+
   return (
     <div className="flex min-h-full flex-col">
       {/* Top nav */}
@@ -53,6 +99,12 @@ export default function Home() {
             <a className="hover:text-slate-900" href="#settings">
               Settings
             </a>
+            <Link
+              className="flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+              href="/feedback"
+            >
+              Feedback Board ✨
+            </Link>
           </nav>
           <div className="flex items-center gap-2">
             <span className="hidden text-xs text-slate-400 sm:inline">
@@ -121,7 +173,7 @@ export default function Home() {
             </div>
           </div>
           <div className="flex h-40 items-end gap-2">
-            {BARS.map((h, i) => (
+            {bars.map((h, i) => (
               <div
                 key={i}
                 className="flex-1 rounded-t bg-indigo-500/80"
@@ -146,21 +198,24 @@ export default function Home() {
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
             <h2 className="text-sm font-semibold text-slate-900">Accounts</h2>
             <div className="flex items-center gap-2">
-              {/* Intentionally empty / broken filter — perfect annotation target */}
               <select
                 aria-label="Filter by status"
-                className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-400"
-                defaultValue=""
+                className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-700"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
               >
-                <option value="" disabled>
-                  Filter…
-                </option>
+                <option value="All">All</option>
+                <option value="Active">Active</option>
+                <option value="Trial">Trial</option>
+                <option value="Past due">Past due</option>
               </select>
               <button
                 type="button"
-                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-300"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-300 disabled:opacity-50"
               >
-                Refresh
+                {isRefreshing ? "Refreshing..." : "Refresh"}
               </button>
             </div>
           </div>
@@ -174,7 +229,7 @@ export default function Home() {
               </tr>
             </thead>
             <tbody>
-              {ROWS.map((r, i) => (
+              {filteredRows.map((r, i) => (
                 <tr
                   key={i}
                   className="border-b border-slate-50 last:border-0 hover:bg-slate-50"
