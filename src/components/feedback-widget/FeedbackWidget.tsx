@@ -414,6 +414,11 @@ function SuccessPanel({
         <p className="mt-2 text-sm font-semibold text-slate-900">
           Thanks! Your wish was received.
         </p>
+        {!result && (
+          <p className="mt-1 text-xs text-slate-500">
+            Our autonomous AI agent is triaging the codebase in the background.
+          </p>
+        )}
       </div>
 
       {result && (

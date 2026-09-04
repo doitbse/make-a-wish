@@ -1,13 +1,67 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { FeedbackSubmission, TriageResult } from "@/components/feedback-widget/types";
-import { saveFeedback, getFeedbackList, type StoredFeedback } from "@/lib/feedback-store";
+import {
+  saveFeedback,
+  updateFeedback,
+  getFeedbackList,
+  type StoredFeedback,
+} from "@/lib/feedback-store";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 /**
- * Persist a feedback submission and forward it to the companion
- * triage service. Stored in Firestore (sascha-playground-doit) with local fallback.
+ * Background worker to run Gemini agent triage asynchronously.
+ * Keeps user response time < 150ms and prevents HTTP connection timeouts.
+ */
+async function triggerBackgroundTriage(
+  feedbackId: string,
+  submission: FeedbackSubmission,
+  triageUrl: string,
+) {
+  console.log(`[make-a-wish] Starting background triage for submission ${feedbackId}...`);
+  try {
+    const controller = new AbortController();
+    // 10-minute timeout for multi-step agent reasoning, repo inspection, and PR creation
+    const timeout = setTimeout(() => controller.abort(), 600_000);
+    const res = await fetch(`${triageUrl.replace(/\/$/, "")}/triage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(submission),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (res.ok) {
+      const triage = (await res.json()) as TriageResult;
+      await updateFeedback(feedbackId, {
+        triage,
+        status: "triaged",
+        triageError: null,
+        triagedAt: new Date().toISOString(),
+      });
+      console.log(`[make-a-wish] Successfully completed triage for ${feedbackId}.`);
+    } else {
+      const errorText = await res.text();
+      await updateFeedback(feedbackId, {
+        status: "triage_failed",
+        triageError: `triage responded ${res.status}: ${errorText.slice(0, 200)}`,
+      });
+      console.warn(`[make-a-wish] Triage returned status ${res.status} for ${feedbackId}.`);
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "triage fetch failed";
+    console.error(`[make-a-wish] Background triage error for ${feedbackId}:`, message);
+    await updateFeedback(feedbackId, {
+      status: "triage_failed",
+      triageError: message,
+    });
+  }
+}
+
+/**
+ * Persist a feedback submission immediately to Firestore and respond instantly (<150ms).
+ * AI triage executes asynchronously in the background.
  */
 export async function POST(req: NextRequest) {
   let body: FeedbackSubmission;
@@ -17,51 +71,35 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "invalid json" }, { status: 400 });
   }
 
-  const triageUrl = process.env.TRIAGE_SERVICE_URL?.trim();
-  let triage: TriageResult | null = null;
-  let triageError: string | null = null;
-
-  if (triageUrl) {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 180_000);
-      const res = await fetch(`${triageUrl.replace(/\/$/, "")}/triage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      if (res.ok) {
-        triage = (await res.json()) as TriageResult;
-      } else {
-        triageError = `triage responded ${res.status}`;
-      }
-    } catch (err) {
-      triageError = err instanceof Error ? err.message : "triage fetch failed";
-    }
-  }
-
-  // Persist to Firestore / local backup
+  // 1. Immediately persist to Firestore / local backup
   let savedRecord: StoredFeedback | null = null;
   try {
     savedRecord = await saveFeedback({
       ...body,
-      triage,
-      triageError,
+      status: "pending_triage",
+      triage: null,
+      triageError: null,
       storedAt: new Date().toISOString(),
     });
   } catch (err) {
     console.error("[make-a-wish] failed to persist submission:", err);
   }
 
+  // 2. Fire asynchronous background triage without blocking HTTP response
+  const triageUrl = process.env.TRIAGE_SERVICE_URL?.trim();
+  if (triageUrl && savedRecord?.id) {
+    triggerBackgroundTriage(savedRecord.id, body, triageUrl).catch((err) => {
+      console.error("[make-a-wish] unhandled error in background triage:", err);
+    });
+  }
+
+  // 3. Return immediate 200 OK so client sees instant confirmation
   return NextResponse.json({
     ok: true,
     stored: true,
     id: savedRecord?.id,
     source: savedRecord?.source,
-    triage,
-    triageError,
+    status: "pending_triage",
   });
 }
 

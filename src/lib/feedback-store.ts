@@ -9,6 +9,8 @@ export type StoredFeedback = FeedbackSubmission & {
   triage: TriageResult | null;
   triageError: string | null;
   storedAt: string;
+  triagedAt?: string;
+  status?: "pending_triage" | "triaged" | "triage_failed";
   source?: "firestore" | "local";
 };
 
@@ -78,6 +80,7 @@ export async function saveFeedback(
         userAgent: record.userAgent ?? null,
         timestamp: record.timestamp || new Date().toISOString(),
         storedAt: record.storedAt,
+        status: record.status || (record.triage ? "triaged" : "pending_triage"),
         triage: record.triage || null,
         triageError: record.triageError || null,
       };
@@ -110,6 +113,43 @@ export async function saveFeedback(
   return record;
 }
 
+export async function updateFeedback(
+  id: string,
+  updates: Partial<StoredFeedback>,
+): Promise<boolean> {
+  const db = getFirestoreClient();
+  let updatedInFirestore = false;
+  if (db) {
+    try {
+      const updatePayload: Record<string, unknown> = {};
+      if (updates.status !== undefined) updatePayload.status = updates.status;
+      if (updates.triage !== undefined) updatePayload.triage = updates.triage;
+      if (updates.triageError !== undefined) updatePayload.triageError = updates.triageError;
+      if (updates.triagedAt !== undefined) updatePayload.triagedAt = updates.triagedAt;
+
+      await db.collection(COLLECTION_NAME).doc(id).set(updatePayload, { merge: true });
+      updatedInFirestore = true;
+      console.log(`[feedback-store] Updated feedback ${id} in Firestore (status=${updates.status}).`);
+    } catch (err) {
+      console.error(`[feedback-store] Failed to update feedback ${id} in Firestore:`, err);
+    }
+  }
+
+  // Also update local file
+  try {
+    const locals = await readLocalSubmissions();
+    const idx = locals.findIndex((item) => item.id === id);
+    if (idx !== -1) {
+      locals[idx] = { ...locals[idx], ...updates };
+      await writeLocalSubmissions(locals);
+    }
+  } catch (err) {
+    console.error("[feedback-store] Failed to update local submissions:", err);
+  }
+
+  return updatedInFirestore;
+}
+
 export async function getFeedbackList(): Promise<StoredFeedback[]> {
   const db = getFirestoreClient();
   if (db) {
@@ -133,6 +173,8 @@ export async function getFeedbackList(): Promise<StoredFeedback[]> {
             userAgent: d.userAgent || "",
             timestamp: d.timestamp || d.storedAt,
             storedAt: d.storedAt || new Date().toISOString(),
+            triagedAt: d.triagedAt,
+            status: d.status || (d.triage ? "triaged" : d.triageError ? "triage_failed" : "pending_triage"),
             triage: d.triage || null,
             triageError: d.triageError || null,
             source: "firestore",
