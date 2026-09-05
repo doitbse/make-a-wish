@@ -60,6 +60,7 @@ export class MakeAWishWidgetUI {
   private isSubmitting = false;
   private isDone = false;
   private selectedCategory: Category | null = "Bug";
+  private selectedAgentMode: "both" | "adk" | "managed-agent" = "both";
   private textValue = "";
   private annotations: Annotation[] = [];
   private screenshotDataUrl: string | null = null;
@@ -298,6 +299,49 @@ export class MakeAWishWidgetUI {
           border-color: #fc3165;
           font-weight: 500;
         }
+        .maw-engine-bar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          padding: 4px 8px;
+        }
+        .maw-engine-label {
+          font-weight: 600;
+          color: #64748b;
+          font-size: 10px;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+        }
+        .maw-engine-chips {
+          display: flex;
+          gap: 4px;
+        }
+        .maw-engine-chip {
+          display: inline-flex;
+          align-items: center;
+          padding: 3px 8px;
+          border-radius: 6px;
+          border: 1px solid #cbd5e1;
+          background: #ffffff;
+          font-family: 'Inter', sans-serif;
+          font-size: 10px;
+          font-weight: 500;
+          color: #475569;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+        .maw-engine-chip:hover {
+          border-color: #94a3b8;
+          color: #1e293b;
+        }
+        .maw-engine-chip.active {
+          background: #4f46e5;
+          color: #ffffff;
+          border-color: #4f46e5;
+        }
         .maw-textarea {
           width: 100%;
           min-height: 96px;
@@ -532,7 +576,13 @@ export class MakeAWishWidgetUI {
                 </div>
                 <div class="maw-success-title">Wish received!</div>
                 <div class="maw-success-desc">
-                  Our autonomous triage agent will inspect the request, test the code, and open a pull request on GitHub.
+                  ${
+                    this.selectedAgentMode === "both"
+                      ? "Both triage engines (Google ADK & Vertex Managed Agent) are concurrently inspecting the codebase to test the fix and open pull requests on GitHub."
+                      : this.selectedAgentMode === "adk"
+                        ? "Google ADK Agent is inspecting the codebase to test the fix and open a pull request on GitHub."
+                        : "Vertex Managed Agent is inspecting the codebase to test the fix and open a pull request on GitHub."
+                  }
                 </div>
                 <button type="button" class="maw-secondary-btn" id="mawResetBtn">Send another wish</button>
               </div>
@@ -547,6 +597,21 @@ export class MakeAWishWidgetUI {
                   </button>
                 `,
                 ).join("")}
+              </div>
+
+              <div class="maw-engine-bar">
+                <span class="maw-engine-label">Engine</span>
+                <div class="maw-engine-chips">
+                  <button type="button" class="maw-engine-chip ${this.selectedAgentMode === "both" ? "active" : ""}" data-engine="both">
+                    Dual (Both)
+                  </button>
+                  <button type="button" class="maw-engine-chip ${this.selectedAgentMode === "adk" ? "active" : ""}" data-engine="adk">
+                    ADK Only
+                  </button>
+                  <button type="button" class="maw-engine-chip ${this.selectedAgentMode === "managed-agent" ? "active" : ""}" data-engine="managed-agent">
+                    Managed Only
+                  </button>
+                </div>
               </div>
 
               <textarea
@@ -680,6 +745,17 @@ export class MakeAWishWidgetUI {
       });
     });
 
+    const engineChips = this.root.querySelectorAll(".maw-engine-chip");
+    engineChips.forEach((chip) => {
+      chip.addEventListener("click", (e) => {
+        const mode = (e.currentTarget as HTMLElement).getAttribute("data-engine") as "both" | "adk" | "managed-agent";
+        if (mode) {
+          this.selectedAgentMode = mode;
+          this.render();
+        }
+      });
+    });
+
     const textarea = this.root.getElementById("mawTextInput") as HTMLTextAreaElement | null;
     if (textarea) {
       if (this.shouldFocusTextarea) {
@@ -732,6 +808,7 @@ export class MakeAWishWidgetUI {
         this.isDone = false;
         this.textValue = "";
         this.selectedCategory = "Bug";
+        this.selectedAgentMode = "both";
         this.annotations = [];
         this.screenshotDataUrl = null;
         this.errorMessage = null;
@@ -1019,6 +1096,7 @@ export class MakeAWishWidgetUI {
       appId: this.config.appId || "default-app",
       repo: primaryRepo,
       repos: repos,
+      agentMode: this.selectedAgentMode,
       category: this.selectedCategory,
       text: this.textValue.trim(),
       annotations: this.annotations,
