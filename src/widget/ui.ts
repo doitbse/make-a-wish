@@ -7,7 +7,6 @@ export interface WidgetConfig {
   apiUrl: string;
   userEmail?: string;
   position?: "bottom-right" | "bottom-left";
-  agentMode?: "both" | "adk" | "managed-agent";
 }
 
 export function parseRepos(reposAttr?: string | null, repoAttr?: string | null): string[] {
@@ -63,6 +62,8 @@ export class MakeAWishWidgetUI {
   private selectedCategory: Category | null = "Bug";
   private selectedAgentMode: "both" | "adk" | "managed-agent" = "adk";
   private textValue = "";
+  private questionAnswer: string | null = null;
+  private lastAskedQuestion = "";
   private annotations: Annotation[] = [];
   private screenshotDataUrl: string | null = null;
   private errorMessage: string | null = null;
@@ -78,9 +79,6 @@ export class MakeAWishWidgetUI {
   constructor(root: ShadowRoot, config: WidgetConfig) {
     this.root = root;
     this.config = config;
-    if (config.agentMode) {
-      this.selectedAgentMode = config.agentMode;
-    }
     window.addEventListener("resize", () => {
       if (this.modalPos && this.isOpen) {
         const modal = this.root.querySelector(".maw-modal") as HTMLElement | null;
@@ -101,9 +99,6 @@ export class MakeAWishWidgetUI {
 
   public updateConfig(newConfig: Partial<WidgetConfig>) {
     this.config = { ...this.config, ...newConfig };
-    if (newConfig.agentMode) {
-      this.selectedAgentMode = newConfig.agentMode;
-    }
     this.render();
   }
 
@@ -305,6 +300,154 @@ export class MakeAWishWidgetUI {
           color: #fc3165;
           border-color: #fc3165;
           font-weight: 500;
+        }
+        .maw-question-hint {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+          background: #eff6ff;
+          border: 1px solid #bfdbfe;
+          border-radius: 8px;
+          padding: 8px 10px;
+        }
+        .maw-question-hint-icon {
+          font-size: 16px;
+          line-height: 1.2;
+        }
+        .maw-question-hint-body {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+        .maw-question-hint-title {
+          font-size: 11px;
+          font-weight: 600;
+          color: #1e40af;
+        }
+        .maw-question-hint-sub {
+          font-size: 10px;
+          color: #3b82f6;
+          line-height: 1.35;
+        }
+        .maw-answer-view {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .maw-ai-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: #eef2ff;
+          color: #4338ca;
+          border: 1px solid #c7d2fe;
+          border-radius: 9999px;
+          padding: 3px 10px;
+          font-size: 11px;
+          font-weight: 600;
+          align-self: flex-start;
+        }
+        .maw-question-quote {
+          background: #f8fafc;
+          border-left: 3px solid #6366f1;
+          border-radius: 0 8px 8px 0;
+          padding: 8px 12px;
+        }
+        .maw-question-quote-label {
+          font-size: 9px;
+          text-transform: uppercase;
+          font-weight: 700;
+          color: #64748b;
+          letter-spacing: 0.05em;
+          margin-bottom: 2px;
+        }
+        .maw-question-quote-text {
+          font-size: 12px;
+          color: #334155;
+          font-weight: 500;
+          line-height: 1.4;
+        }
+        .maw-answer-content {
+          background: #ffffff;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          padding: 12px;
+          max-height: 240px;
+          overflow-y: auto;
+          font-size: 12px;
+          line-height: 1.55;
+          color: #1e293b;
+        }
+        .maw-answer-content::-webkit-scrollbar {
+          width: 5px;
+        }
+        .maw-answer-content::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 4px;
+        }
+        .maw-answer-actions {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          margin-top: 4px;
+        }
+        .maw-escalate-btn {
+          width: 100%;
+          background: #f0fdf4;
+          border: 1px solid #bbf7d0;
+          color: #15803d;
+          font-size: 11px;
+          font-weight: 600;
+          padding: 7px 12px;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+        }
+        .maw-escalate-btn:hover {
+          background: #dcfce7;
+          border-color: #86efac;
+        }
+        .maw-md h2, .maw-md h3, .maw-md h4 {
+          margin: 8px 0 4px 0;
+          font-size: 12px;
+          font-weight: 700;
+          color: #0f172a;
+        }
+        .maw-md p {
+          margin: 0 0 6px 0;
+        }
+        .maw-md p:last-child {
+          margin-bottom: 0;
+        }
+        .maw-md ul, .maw-md ol {
+          margin: 4px 0 6px 16px;
+          padding: 0;
+        }
+        .maw-md li {
+          margin-bottom: 3px;
+        }
+        .maw-code-block {
+          background: #0f172a;
+          color: #f1f5f9;
+          padding: 8px 10px;
+          border-radius: 6px;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+          font-size: 11px;
+          overflow-x: auto;
+          margin: 6px 0;
+        }
+        .maw-inline-code {
+          background: #f1f5f9;
+          color: #0f172a;
+          padding: 2px 4px;
+          border-radius: 4px;
+          font-size: 11px;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+          border: 1px solid #e2e8f0;
         }
         .maw-textarea {
           width: 100%;
@@ -540,18 +683,36 @@ export class MakeAWishWidgetUI {
                 </div>
                 <div class="maw-success-title">Wish received!</div>
                 <div class="maw-success-desc">
-                  ${
-                    this.selectedAgentMode === "both"
-                      ? "Both triage engines (Google ADK & Vertex Managed Agent) are concurrently inspecting the codebase to test the fix and open pull requests on GitHub."
-                      : this.selectedAgentMode === "adk"
-                        ? "Google ADK Agent is inspecting the codebase to test the fix and open a pull request on GitHub."
-                        : "Vertex Managed Agent is inspecting the codebase to test the fix and open a pull request on GitHub."
-                  }
+                  Google ADK Agent is inspecting the codebase to test the fix and open a pull request on GitHub.
                 </div>
                 <button type="button" class="maw-secondary-btn" id="mawResetBtn">Send another wish</button>
               </div>
             `
-                : `
+                : this.selectedCategory === "Question" && this.questionAnswer
+                  ? `
+              <div class="maw-answer-view">
+                <div class="maw-ai-badge">
+                  <span>✨ Direct AI Answer</span>
+                </div>
+                <div class="maw-question-quote">
+                  <div class="maw-question-quote-label">Your Question</div>
+                  <div class="maw-question-quote-text">${this.escapeHtml(this.lastAskedQuestion)}</div>
+                </div>
+                <div class="maw-answer-content">
+                  ${this.renderMarkdown(this.questionAnswer)}
+                </div>
+                <div class="maw-answer-actions">
+                  <button type="button" class="maw-escalate-btn" id="mawEscalateBtn">
+                    <span>🚀</span> Need code changes? File as Wish / Bug
+                  </button>
+                  <div style="display: flex; gap: 8px;">
+                    <button type="button" class="maw-secondary-btn" id="mawAskAnotherBtn" style="flex: 1;">Ask another question</button>
+                    <button type="button" class="maw-submit-btn" id="mawAnswerDoneBtn" style="flex: 1;">Done</button>
+                  </div>
+                </div>
+              </div>
+            `
+                  : `
               <div class="maw-categories">
                 ${CATEGORIES.map(
                   (c) => `
@@ -563,10 +724,28 @@ export class MakeAWishWidgetUI {
                 ).join("")}
               </div>
 
+              ${
+                this.selectedCategory === "Question"
+                  ? `
+                <div class="maw-question-hint">
+                  <div class="maw-question-hint-icon">💬</div>
+                  <div class="maw-question-hint-body">
+                    <span class="maw-question-hint-title">Direct AI Answers</span>
+                    <span class="maw-question-hint-sub">Ask a question to receive an immediate answer from the AI agent using live repo knowledge.</span>
+                  </div>
+                </div>
+              `
+                  : ""
+              }
+
               <textarea
                 class="maw-textarea"
                 id="mawTextInput"
-                placeholder="What would make this tool better? Describe what you want or report a bug..."
+                placeholder="${
+                  this.selectedCategory === "Question"
+                    ? "Ask anything about this app, features, or workflows..."
+                    : "What would make this tool better? Describe what you want or report a bug..."
+                }"
               >${this.escapeHtml(this.textValue)}</textarea>
 
               ${
@@ -597,7 +776,15 @@ export class MakeAWishWidgetUI {
                   id="mawSubmitBtn"
                   ${this.isSubmitting || !this.hasMeaningfulText() ? "disabled" : ""}
                 >
-                  ${this.isSubmitting ? "Submitting wish..." : "Send wish ✨"}
+                  ${
+                    this.isSubmitting
+                      ? this.selectedCategory === "Question"
+                        ? "Consulting AI..."
+                        : "Submitting wish..."
+                      : this.selectedCategory === "Question"
+                        ? "Ask question 💬"
+                        : "Send wish ✨"
+                  }
                 </button>
               </div>
             `
@@ -690,9 +877,41 @@ export class MakeAWishWidgetUI {
       chip.addEventListener("click", (e) => {
         const cat = (e.currentTarget as HTMLElement).getAttribute("data-category") as Category;
         this.selectedCategory = cat;
+        this.errorMessage = null;
         this.render();
       });
     });
+
+    const askAnotherBtn = this.root.getElementById("mawAskAnotherBtn");
+    if (askAnotherBtn) {
+      askAnotherBtn.addEventListener("click", () => {
+        this.questionAnswer = null;
+        this.textValue = "";
+        this.screenshotDataUrl = null;
+        this.annotations = [];
+        this.errorMessage = null;
+        this.render();
+      });
+    }
+
+    const escalateBtn = this.root.getElementById("mawEscalateBtn");
+    if (escalateBtn) {
+      escalateBtn.addEventListener("click", () => {
+        this.selectedCategory = "Idea";
+        this.textValue = `Feature request following question: "${this.lastAskedQuestion}"\n\n`;
+        this.questionAnswer = null;
+        this.errorMessage = null;
+        this.render();
+      });
+    }
+
+    const answerDoneBtn = this.root.getElementById("mawAnswerDoneBtn");
+    if (answerDoneBtn) {
+      answerDoneBtn.addEventListener("click", () => {
+        this.isOpen = false;
+        this.render();
+      });
+    }
 
     const textarea = this.root.getElementById("mawTextInput") as HTMLTextAreaElement | null;
     if (textarea) {
@@ -746,7 +965,9 @@ export class MakeAWishWidgetUI {
         this.isDone = false;
         this.textValue = "";
         this.selectedCategory = "Bug";
-        this.selectedAgentMode = this.config.agentMode || "adk";
+        this.selectedAgentMode = "adk";
+        this.questionAnswer = null;
+        this.lastAskedQuestion = "";
         this.annotations = [];
         this.screenshotDataUrl = null;
         this.errorMessage = null;
@@ -1012,6 +1233,10 @@ export class MakeAWishWidgetUI {
   }
 
   private async submitFeedback() {
+    if (this.selectedCategory === "Question") {
+      return this.submitQuestion();
+    }
+
     if (!this.hasMeaningfulText() || this.isSubmitting) return;
 
     this.isSubmitting = true;
@@ -1069,6 +1294,107 @@ export class MakeAWishWidgetUI {
       this.errorMessage = err instanceof Error ? err.message : "Submission failed";
       this.render();
     }
+  }
+
+  private async submitQuestion() {
+    if (!this.hasMeaningfulText() || this.isSubmitting) return;
+
+    this.isSubmitting = true;
+    this.errorMessage = null;
+    this.lastAskedQuestion = this.textValue.trim();
+    this.render();
+
+    let shot = this.screenshotDataUrl;
+    if (!shot && this.annotations.length > 0) {
+      shot = await captureAnnotatedScreenshot(this.annotations);
+      this.screenshotDataUrl = shot;
+    }
+
+    const repos = (this.config.repos && this.config.repos.length > 0)
+      ? this.config.repos
+      : (this.config.repo ? [this.config.repo] : []);
+    const primaryRepo = repos[0] || this.config.repo || "";
+
+    const payload = {
+      question: this.lastAskedQuestion,
+      appId: this.config.appId || "default-app",
+      repo: primaryRepo,
+      repos: repos,
+      screenshot: shot,
+      annotations: this.annotations,
+      url: window.location.href,
+      userAgent: navigator.userAgent,
+      userEmail: this.config.userEmail || "",
+      timestamp: new Date().toISOString(),
+    };
+
+    try {
+      const apiUrl = (this.config.apiUrl || window.location.origin).replace(/\/$/, "");
+      const res = await fetch(`${apiUrl}/api/question`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Make-A-Wish-App": this.config.appId || "generic",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Agent query failed (${res.status}): ${errorText.slice(0, 150)}`);
+      }
+
+      const data = await res.json();
+      if (!data.ok && data.error) {
+        throw new Error(data.message || data.error);
+      }
+
+      this.questionAnswer = data.answer || "No answer returned.";
+      this.isSubmitting = false;
+      this.render();
+    } catch (err) {
+      this.isSubmitting = false;
+      this.errorMessage = err instanceof Error ? err.message : "Failed to receive answer from agent";
+      this.render();
+    }
+  }
+
+  private renderMarkdown(md: string): string {
+    if (!md) return "";
+    let s = this.escapeHtml(md);
+
+    // Code blocks
+    s = s.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (_m, _lang, code) => {
+      return `<pre class="maw-code-block"><code>${code.trim()}</code></pre>`;
+    });
+
+    // Inline code
+    s = s.replace(/`([^`]+)`/g, '<code class="maw-inline-code">$1</code>');
+
+    // Headers
+    s = s.replace(/^### (.*$)/gm, '<h4 class="maw-h4">$1</h4>');
+    s = s.replace(/^## (.*$)/gm, '<h3 class="maw-h3">$1</h3>');
+    s = s.replace(/^# (.*$)/gm, '<h2 class="maw-h2">$1</h2>');
+
+    // Bold & italic
+    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+    // Bullet lists
+    s = s.replace(/^\s*[-*]\s+(.*$)/gm, '<li class="maw-list-item">$1</li>');
+    s = s.replace(/(<li class="maw-list-item">[\s\S]*?<\/li>)/g, '<ul class="maw-list">$1</ul>');
+    s = s.replace(/<\/ul>\s*<ul class="maw-list">/g, "");
+
+    // Numbered lists
+    s = s.replace(/^\s*(\d+)\.\s+(.*$)/gm, '<li class="maw-num-item"><span>$1.</span> $2</li>');
+    s = s.replace(/(<li class="maw-num-item">[\s\S]*?<\/li>)/g, '<ol class="maw-num-list">$1</ol>');
+    s = s.replace(/<\/ol>\s*<ol class="maw-num-list">/g, "");
+
+    // Paragraphs
+    s = s.replace(/\n\n+/g, '</p><p class="maw-para">');
+    s = s.replace(/\n/g, '<br/>');
+
+    return `<div class="maw-md"><p class="maw-para">${s}</p></div>`;
   }
 
   private escapeHtml(str: string): string {
