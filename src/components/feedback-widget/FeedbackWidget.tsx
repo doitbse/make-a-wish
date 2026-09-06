@@ -42,7 +42,7 @@ export default function FeedbackWidget() {
   const [hovered, setHovered] = useState<Element | null>(null);
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
-  const [agentEngine, setAgentEngine] = useState<"both" | "adk" | "managed-agent">("both");
+  const [agentEngine] = useState<"both" | "adk" | "managed-agent">("adk");
   const [result, setResult] = useState<TriageResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [modalPos, setModalPos] = useState<{ x: number; y: number } | null>(null);
@@ -461,58 +461,6 @@ export default function FeedbackWidget() {
                     />
                   </div>
                 )}
-
-                {/* Agent engine selector */}
-                <div className="mt-3 rounded-[10px] border border-[#e5e7eb] bg-[#f8f9fa] p-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 text-xs font-medium text-[#1a1a2e]">
-                      <span>🤖</span>
-                      <span>Agent Engine</span>
-                    </span>
-                    <span className="text-[10px] font-mono text-[#6b7280]">
-                      {agentEngine === "both"
-                        ? "Dual Engine (Both PRs)"
-                        : agentEngine === "adk"
-                          ? "Google ADK Agent"
-                          : "Vertex Managed Agent"}
-                    </span>
-                  </div>
-                  <div className="mt-2 grid grid-cols-3 gap-1.5 text-center text-[11px]">
-                    <button
-                      type="button"
-                      onClick={() => setAgentEngine("both")}
-                      className={`rounded-md py-1.5 font-medium transition ${
-                        agentEngine === "both"
-                          ? "bg-[#1a1a2e] text-white shadow-xs"
-                          : "border border-[#e5e7eb] bg-white text-[#6b7280] hover:text-[#1a1a2e]"
-                      }`}
-                    >
-                      Both
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAgentEngine("adk")}
-                      className={`rounded-md py-1.5 font-medium transition ${
-                        agentEngine === "adk"
-                          ? "bg-emerald-600 text-white shadow-xs"
-                          : "border border-[#e5e7eb] bg-white text-[#6b7280] hover:text-[#1a1a2e]"
-                      }`}
-                    >
-                      ADK Only
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAgentEngine("managed-agent")}
-                      className={`rounded-md py-1.5 font-medium transition ${
-                        agentEngine === "managed-agent"
-                          ? "bg-purple-600 text-white shadow-xs"
-                          : "border border-[#e5e7eb] bg-white text-[#6b7280] hover:text-[#1a1a2e]"
-                      }`}
-                    >
-                      Managed Only
-                    </button>
-                  </div>
-                </div>
 
                 {error && (
                   <p className="mt-3 rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">

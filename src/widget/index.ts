@@ -10,7 +10,7 @@ export class MakeAWishWidgetElement extends HTMLElement {
   }
 
   static get observedAttributes() {
-    return ["data-app", "data-repo", "data-repos", "data-api", "data-user", "data-position"];
+    return ["data-app", "data-repo", "data-repos", "data-api", "data-user", "data-position", "data-engine"];
   }
 
   connectedCallback() {
@@ -30,6 +30,7 @@ export class MakeAWishWidgetElement extends HTMLElement {
     if (name === "data-api") partial.apiUrl = newValue;
     if (name === "data-user") partial.userEmail = newValue;
     if (name === "data-position") partial.position = newValue as "bottom-right" | "bottom-left";
+    if (name === "data-engine") partial.agentMode = newValue as "both" | "adk" | "managed-agent";
     this.ui.updateConfig(partial);
   }
 
@@ -42,6 +43,7 @@ export class MakeAWishWidgetElement extends HTMLElement {
       apiUrl: this.getAttribute("data-api") || window.location.origin,
       userEmail: this.getAttribute("data-user") || undefined,
       position: (this.getAttribute("data-position") as "bottom-right" | "bottom-left") || "bottom-right",
+      agentMode: (this.getAttribute("data-engine") as "both" | "adk" | "managed-agent") || "adk",
     };
   }
 }
@@ -61,7 +63,6 @@ function autoInitialize() {
 
   let scriptOrigin = window.location.origin;
   let appId = "";
-  let repo = "";
   let apiUrl = "";
   let userEmail = "";
   let position: "bottom-right" | "bottom-left" = "bottom-right";
@@ -80,6 +81,7 @@ function autoInitialize() {
     const repos = parseRepos(rawRepos, rawRepo);
     apiUrl = currentScript.getAttribute("data-api") || scriptOrigin;
     userEmail = currentScript.getAttribute("data-user") || "";
+    const rawEngine = currentScript.getAttribute("data-engine");
     const pos = currentScript.getAttribute("data-position");
     if (pos === "bottom-left" || pos === "bottom-right") {
       position = pos;
@@ -98,6 +100,7 @@ function autoInitialize() {
     }
     if (apiUrl) widget.setAttribute("data-api", apiUrl);
     if (userEmail) widget.setAttribute("data-user", userEmail);
+    if (rawEngine) widget.setAttribute("data-engine", rawEngine);
     widget.setAttribute("data-position", position);
 
     document.body.appendChild(widget);
