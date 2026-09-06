@@ -1548,7 +1548,7 @@ export class MakeAWishWidgetUI {
       if (data.sessionId) {
         this.sessionId = data.sessionId;
         try {
-          window.localStorage.setItem("maw_session_id", this.sessionId);
+          window.localStorage.setItem("maw_session_id", data.sessionId);
         } catch {}
       }
 
@@ -1633,7 +1633,7 @@ export class MakeAWishWidgetUI {
       if (data.sessionId) {
         this.sessionId = data.sessionId;
         try {
-          window.localStorage.setItem("maw_session_id", this.sessionId);
+          window.localStorage.setItem("maw_session_id", data.sessionId);
         } catch {}
       }
 
