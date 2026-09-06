@@ -45,6 +45,13 @@ export function parseRepos(reposAttr?: string | null, repoAttr?: string | null):
 
 export type Category = "Bug" | "Idea" | "Question" | "Praise";
 
+export interface ChatMessage {
+  id: string;
+  role: "user" | "agent";
+  text: string;
+  timestamp: string;
+}
+
 const CATEGORIES: { label: Category; emoji: string }[] = [
   { label: "Bug", emoji: "🐛" },
   { label: "Idea", emoji: "💡" },
@@ -64,6 +71,10 @@ export class MakeAWishWidgetUI {
   private textValue = "";
   private questionAnswer: string | null = null;
   private lastAskedQuestion = "";
+  private sessionId: string | null = null;
+  private chatMessages: ChatMessage[] = [];
+  private isAskingFollowUp = false;
+  private followUpInputValue = "";
   private annotations: Annotation[] = [];
   private screenshotDataUrl: string | null = null;
   private errorMessage: string | null = null;
@@ -79,6 +90,16 @@ export class MakeAWishWidgetUI {
   constructor(root: ShadowRoot, config: WidgetConfig) {
     this.root = root;
     this.config = config;
+    try {
+      this.sessionId = window.localStorage.getItem("maw_session_id") || null;
+      const stored = window.localStorage.getItem("maw_chat_messages");
+      if (stored) {
+        this.chatMessages = JSON.parse(stored);
+      }
+    } catch {
+      this.sessionId = null;
+      this.chatMessages = [];
+    }
     window.addEventListener("resize", () => {
       if (this.modalPos && this.isOpen) {
         const modal = this.root.querySelector(".maw-modal") as HTMLElement | null;
@@ -329,10 +350,24 @@ export class MakeAWishWidgetUI {
           color: #3b82f6;
           line-height: 1.35;
         }
-        .maw-answer-view {
+        .maw-chat-view {
           display: flex;
           flex-direction: column;
-          gap: 12px;
+          gap: 10px;
+        }
+        .maw-chat-header-bar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        .maw-session-indicator {
+          font-size: 10px;
+          font-weight: 600;
+          color: #10b981;
+          background: #ecfdf5;
+          border: 1px solid #a7f3d0;
+          border-radius: 12px;
+          padding: 2px 8px;
         }
         .maw-ai-badge {
           display: inline-flex;
@@ -347,43 +382,125 @@ export class MakeAWishWidgetUI {
           font-weight: 600;
           align-self: flex-start;
         }
-        .maw-question-quote {
-          background: #f8fafc;
-          border-left: 3px solid #6366f1;
-          border-radius: 0 8px 8px 0;
-          padding: 8px 12px;
-        }
-        .maw-question-quote-label {
-          font-size: 9px;
-          text-transform: uppercase;
-          font-weight: 700;
-          color: #64748b;
-          letter-spacing: 0.05em;
-          margin-bottom: 2px;
-        }
-        .maw-question-quote-text {
-          font-size: 12px;
-          color: #334155;
-          font-weight: 500;
-          line-height: 1.4;
-        }
-        .maw-answer-content {
-          background: #ffffff;
-          border: 1px solid #e2e8f0;
-          border-radius: 8px;
-          padding: 12px;
-          max-height: 240px;
+        .maw-chat-messages {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          max-height: 250px;
+          min-height: 120px;
           overflow-y: auto;
-          font-size: 12px;
-          line-height: 1.55;
-          color: #1e293b;
+          padding: 6px 4px 6px 0;
         }
-        .maw-answer-content::-webkit-scrollbar {
+        .maw-chat-messages::-webkit-scrollbar {
           width: 5px;
         }
-        .maw-answer-content::-webkit-scrollbar-thumb {
+        .maw-chat-messages::-webkit-scrollbar-thumb {
           background: #cbd5e1;
           border-radius: 4px;
+        }
+        .maw-chat-msg {
+          display: flex;
+          width: 100%;
+        }
+        .maw-chat-msg-user {
+          justify-content: flex-end;
+        }
+        .maw-chat-msg-agent {
+          justify-content: flex-start;
+        }
+        .maw-chat-msg-user .maw-chat-msg-bubble {
+          background: #f1f5f9;
+          border: 1px solid #e2e8f0;
+          border-radius: 14px 14px 2px 14px;
+          padding: 8px 12px;
+          max-width: 85%;
+          font-size: 12.5px;
+          color: #1e293b;
+          line-height: 1.45;
+        }
+        .maw-chat-msg-agent .maw-chat-msg-bubble {
+          background: #ffffff;
+          border: 1px solid #e2e8f0;
+          border-radius: 14px 14px 14px 2px;
+          padding: 10px 12px;
+          max-width: 92%;
+          font-size: 12px;
+          color: #1e293b;
+          line-height: 1.55;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        }
+        .maw-chat-msg-loading {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          color: #64748b;
+          font-size: 12px;
+          padding: 8px 12px;
+        }
+        .maw-typing-dot {
+          width: 6px;
+          height: 6px;
+          background: #6366f1;
+          border-radius: 50%;
+          animation: mawBounce 1.2s infinite ease-in-out;
+        }
+        .maw-typing-dot:nth-child(2) {
+          animation-delay: 0.2s;
+        }
+        .maw-typing-dot:nth-child(3) {
+          animation-delay: 0.4s;
+        }
+        @keyframes mawBounce {
+          0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+          40% { transform: translateY(-4px); opacity: 1; }
+        }
+        .maw-chat-input-row {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: #f8fafc;
+          border: 1px solid #cbd5e1;
+          border-radius: 10px;
+          padding: 4px 6px 4px 10px;
+          transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .maw-chat-input-row:focus-within {
+          border-color: #6366f1;
+          box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+          background: #ffffff;
+        }
+        .maw-chat-input {
+          flex: 1;
+          border: none;
+          background: transparent;
+          outline: none;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          font-size: 12.5px;
+          color: #0f172a;
+        }
+        .maw-chat-input::placeholder {
+          color: #94a3b8;
+        }
+        .maw-chat-send-btn {
+          background: #4f46e5;
+          color: #ffffff;
+          border: none;
+          border-radius: 8px;
+          width: 28px;
+          height: 28px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+        .maw-chat-send-btn:hover:not(:disabled) {
+          background: #4338ca;
+        }
+        .maw-chat-send-btn:disabled {
+          background: #e2e8f0;
+          color: #94a3b8;
+          cursor: not-allowed;
         }
         .maw-answer-actions {
           display: flex;
@@ -688,26 +805,69 @@ export class MakeAWishWidgetUI {
                 <button type="button" class="maw-secondary-btn" id="mawResetBtn">Send another wish</button>
               </div>
             `
-                : this.selectedCategory === "Question" && this.questionAnswer
+                : this.selectedCategory === "Question" && this.chatMessages.length > 0
                   ? `
-              <div class="maw-answer-view">
-                <div class="maw-ai-badge">
-                  <span>✨ Direct AI Answer</span>
+              <div class="maw-chat-view">
+                <div class="maw-chat-header-bar">
+                  <div class="maw-ai-badge">
+                    <span>✨ Live AI Assistant</span>
+                  </div>
+                  ${this.sessionId ? `<span class="maw-session-indicator" title="Persistent Session">Active Topic</span>` : ""}
                 </div>
-                <div class="maw-question-quote">
-                  <div class="maw-question-quote-label">Your Question</div>
-                  <div class="maw-question-quote-text">${this.escapeHtml(this.lastAskedQuestion)}</div>
+
+                <div class="maw-chat-messages" id="mawChatMessages">
+                  ${this.chatMessages.map((m) => `
+                    <div class="maw-chat-msg maw-chat-msg-${m.role}">
+                      <div class="maw-chat-msg-bubble">
+                        ${m.role === "user"
+                          ? `<div class="maw-user-msg-text">${this.escapeHtml(m.text)}</div>`
+                          : `<div class="maw-agent-msg-text">${this.renderMarkdown(m.text)}</div>`
+                        }
+                      </div>
+                    </div>
+                  `).join("")}
+
+                  ${this.isAskingFollowUp ? `
+                    <div class="maw-chat-msg maw-chat-msg-agent">
+                      <div class="maw-chat-msg-bubble maw-chat-msg-loading">
+                        <div class="maw-typing-dot"></div>
+                        <div class="maw-typing-dot"></div>
+                        <div class="maw-typing-dot"></div>
+                        <span>Thinking...</span>
+                      </div>
+                    </div>
+                  ` : ""}
                 </div>
-                <div class="maw-answer-content">
-                  ${this.renderMarkdown(this.questionAnswer)}
+
+                <div class="maw-chat-input-row">
+                  <input
+                    type="text"
+                    class="maw-chat-input"
+                    id="mawFollowUpInput"
+                    placeholder="Ask a follow-up question..."
+                    value="${this.escapeHtml(this.followUpInputValue)}"
+                    ${this.isAskingFollowUp ? "disabled" : ""}
+                  />
+                  <button
+                    type="button"
+                    class="maw-chat-send-btn"
+                    id="mawFollowUpSendBtn"
+                    ${!this.followUpInputValue.trim() || this.isAskingFollowUp ? "disabled" : ""}
+                    title="Send follow-up"
+                  >
+                    <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor;"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                  </button>
                 </div>
+
+                ${this.errorMessage ? `<div class="maw-error">${this.escapeHtml(this.errorMessage)}</div>` : ""}
+
                 <div class="maw-answer-actions">
                   <button type="button" class="maw-escalate-btn" id="mawEscalateBtn">
                     <span>🚀</span> Need code changes? File as Wish / Bug
                   </button>
                   <div style="display: flex; gap: 8px;">
-                    <button type="button" class="maw-secondary-btn" id="mawAskAnotherBtn" style="flex: 1;">Ask another question</button>
-                    <button type="button" class="maw-submit-btn" id="mawAnswerDoneBtn" style="flex: 1;">Done</button>
+                    <button type="button" class="maw-secondary-btn" id="mawNewTopicBtn" style="flex: 1;">New topic</button>
+                    <button type="button" class="maw-submit-btn" id="mawChatDoneBtn" style="flex: 1;">Done</button>
                   </div>
                 </div>
               </div>
@@ -882,14 +1042,41 @@ export class MakeAWishWidgetUI {
       });
     });
 
-    const askAnotherBtn = this.root.getElementById("mawAskAnotherBtn");
-    if (askAnotherBtn) {
-      askAnotherBtn.addEventListener("click", () => {
-        this.questionAnswer = null;
-        this.textValue = "";
-        this.screenshotDataUrl = null;
-        this.annotations = [];
-        this.errorMessage = null;
+    const followUpInput = this.root.getElementById("mawFollowUpInput") as HTMLInputElement | null;
+    if (followUpInput) {
+      followUpInput.addEventListener("input", (e) => {
+        this.followUpInputValue = (e.target as HTMLInputElement).value;
+        const sendBtn = this.root.getElementById("mawFollowUpSendBtn") as HTMLButtonElement | null;
+        if (sendBtn) {
+          sendBtn.disabled = !this.followUpInputValue.trim() || this.isAskingFollowUp;
+        }
+      });
+      followUpInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          this.submitFollowUp();
+        }
+      });
+    }
+
+    const followUpSendBtn = this.root.getElementById("mawFollowUpSendBtn");
+    if (followUpSendBtn) {
+      followUpSendBtn.addEventListener("click", () => {
+        this.submitFollowUp();
+      });
+    }
+
+    const newTopicBtn = this.root.getElementById("mawNewTopicBtn");
+    if (newTopicBtn) {
+      newTopicBtn.addEventListener("click", () => {
+        this.resetChatSession();
+      });
+    }
+
+    const chatDoneBtn = this.root.getElementById("mawChatDoneBtn");
+    if (chatDoneBtn) {
+      chatDoneBtn.addEventListener("click", () => {
+        this.isOpen = false;
         this.render();
       });
     }
@@ -897,18 +1084,15 @@ export class MakeAWishWidgetUI {
     const escalateBtn = this.root.getElementById("mawEscalateBtn");
     if (escalateBtn) {
       escalateBtn.addEventListener("click", () => {
+        const userMsgs = this.chatMessages.filter((m) => m.role === "user").map((m) => m.text);
         this.selectedCategory = "Idea";
-        this.textValue = `Feature request following question: "${this.lastAskedQuestion}"\n\n`;
+        this.textValue =
+          userMsgs.length > 0
+            ? `Follow-up request from discussion:\n${userMsgs.map((q) => "- " + q).join("\n")}\n\nProposed improvement / fix:\n`
+            : `Feature request following question:\n\n`;
+        this.chatMessages = [];
         this.questionAnswer = null;
         this.errorMessage = null;
-        this.render();
-      });
-    }
-
-    const answerDoneBtn = this.root.getElementById("mawAnswerDoneBtn");
-    if (answerDoneBtn) {
-      answerDoneBtn.addEventListener("click", () => {
-        this.isOpen = false;
         this.render();
       });
     }
@@ -1299,10 +1483,21 @@ export class MakeAWishWidgetUI {
   private async submitQuestion() {
     if (!this.hasMeaningfulText() || this.isSubmitting) return;
 
+    const q = this.textValue.trim();
     this.isSubmitting = true;
     this.errorMessage = null;
-    this.lastAskedQuestion = this.textValue.trim();
+    this.lastAskedQuestion = q;
+
+    // Immediately push user turn into chat list
+    this.chatMessages.push({
+      id: `msg_${Date.now()}_u`,
+      role: "user",
+      text: q,
+      timestamp: new Date().toISOString(),
+    });
+    this.textValue = "";
     this.render();
+    this.scrollChatToBottom();
 
     let shot = this.screenshotDataUrl;
     if (!shot && this.annotations.length > 0) {
@@ -1316,7 +1511,8 @@ export class MakeAWishWidgetUI {
     const primaryRepo = repos[0] || this.config.repo || "";
 
     const payload = {
-      question: this.lastAskedQuestion,
+      question: q,
+      sessionId: this.sessionId,
       appId: this.config.appId || "default-app",
       repo: primaryRepo,
       repos: repos,
@@ -1324,7 +1520,7 @@ export class MakeAWishWidgetUI {
       annotations: this.annotations,
       url: window.location.href,
       userAgent: navigator.userAgent,
-      userEmail: this.config.userEmail || "",
+      userEmail: this.config.userEmail || "sascha@doit.com",
       timestamp: new Date().toISOString(),
     };
 
@@ -1349,14 +1545,145 @@ export class MakeAWishWidgetUI {
         throw new Error(data.message || data.error);
       }
 
-      this.questionAnswer = data.answer || "No answer returned.";
+      if (data.sessionId) {
+        this.sessionId = data.sessionId;
+        try {
+          window.localStorage.setItem("maw_session_id", this.sessionId);
+        } catch {}
+      }
+
+      const answer = data.answer || "No answer returned.";
+      this.questionAnswer = answer;
+      this.chatMessages.push({
+        id: `msg_${Date.now()}_a`,
+        role: "agent",
+        text: answer,
+        timestamp: new Date().toISOString(),
+      });
+
+      try {
+        window.localStorage.setItem("maw_chat_messages", JSON.stringify(this.chatMessages));
+      } catch {}
+
       this.isSubmitting = false;
       this.render();
+      this.scrollChatToBottom();
     } catch (err) {
       this.isSubmitting = false;
       this.errorMessage = err instanceof Error ? err.message : "Failed to receive answer from agent";
       this.render();
     }
+  }
+
+  private async submitFollowUp() {
+    const q = this.followUpInputValue.trim();
+    if (!q || this.isAskingFollowUp) return;
+
+    this.followUpInputValue = "";
+    this.isAskingFollowUp = true;
+    this.errorMessage = null;
+
+    this.chatMessages.push({
+      id: `msg_${Date.now()}_u`,
+      role: "user",
+      text: q,
+      timestamp: new Date().toISOString(),
+    });
+    this.render();
+    this.scrollChatToBottom();
+
+    const repos = (this.config.repos && this.config.repos.length > 0)
+      ? this.config.repos
+      : (this.config.repo ? [this.config.repo] : []);
+    const primaryRepo = repos[0] || this.config.repo || "";
+
+    const payload = {
+      question: q,
+      sessionId: this.sessionId,
+      appId: this.config.appId || "default-app",
+      repo: primaryRepo,
+      repos: repos,
+      url: window.location.href,
+      userAgent: navigator.userAgent,
+      userEmail: this.config.userEmail || "sascha@doit.com",
+      timestamp: new Date().toISOString(),
+    };
+
+    try {
+      const apiUrl = (this.config.apiUrl || window.location.origin).replace(/\/$/, "");
+      const res = await fetch(`${apiUrl}/api/question`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Make-A-Wish-App": this.config.appId || "generic",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Agent query failed (${res.status}): ${errorText.slice(0, 150)}`);
+      }
+
+      const data = await res.json();
+      if (!data.ok && data.error) {
+        throw new Error(data.message || data.error);
+      }
+
+      if (data.sessionId) {
+        this.sessionId = data.sessionId;
+        try {
+          window.localStorage.setItem("maw_session_id", this.sessionId);
+        } catch {}
+      }
+
+      const answer = data.answer || "No answer returned.";
+      this.chatMessages.push({
+        id: `msg_${Date.now()}_a`,
+        role: "agent",
+        text: answer,
+        timestamp: new Date().toISOString(),
+      });
+
+      try {
+        window.localStorage.setItem("maw_chat_messages", JSON.stringify(this.chatMessages));
+      } catch {}
+
+      this.isAskingFollowUp = false;
+      this.render();
+      this.scrollChatToBottom();
+    } catch (err) {
+      this.isAskingFollowUp = false;
+      this.errorMessage = err instanceof Error ? err.message : "Failed to receive answer from agent";
+      this.render();
+    }
+  }
+
+  private resetChatSession() {
+    this.sessionId = null;
+    this.chatMessages = [];
+    this.followUpInputValue = "";
+    this.isAskingFollowUp = false;
+    this.questionAnswer = null;
+    this.errorMessage = null;
+    try {
+      window.localStorage.removeItem("maw_session_id");
+      window.localStorage.removeItem("maw_chat_messages");
+    } catch {}
+    this.render();
+  }
+
+  private scrollChatToBottom() {
+    setTimeout(() => {
+      const container = this.root.getElementById("mawChatMessages");
+      if (container) {
+        container.scrollTop = container.scrollHeight;
+      }
+      const input = this.root.getElementById("mawFollowUpInput") as HTMLInputElement | null;
+      if (input && !this.isAskingFollowUp) {
+        input.focus();
+      }
+    }, 40);
   }
 
   private renderMarkdown(md: string): string {
