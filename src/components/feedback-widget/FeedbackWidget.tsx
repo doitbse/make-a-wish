@@ -42,6 +42,7 @@ export default function FeedbackWidget() {
   const [hovered, setHovered] = useState<Element | null>(null);
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
+  const [agentEngine] = useState<"both" | "adk" | "managed-agent">("adk");
   const [result, setResult] = useState<TriageResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [modalPos, setModalPos] = useState<{ x: number; y: number } | null>(null);
@@ -187,6 +188,7 @@ export default function FeedbackWidget() {
       url: typeof window !== "undefined" ? window.location.href : "",
       userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
       timestamp: new Date().toISOString(),
+      agentMode: agentEngine,
     };
 
     try {
@@ -209,7 +211,7 @@ export default function FeedbackWidget() {
       setError(err instanceof Error ? err.message : "submission failed");
       setPhase("idle");
     }
-  }, [canSubmit, category, text, annotations, screenshot]);
+  }, [canSubmit, category, text, annotations, screenshot, agentEngine]);
 
   const reset = useCallback(() => {
     setCategory(null);
@@ -354,6 +356,7 @@ export default function FeedbackWidget() {
             {phase === "done" ? (
               <SuccessPanel
                 result={DEBUG ? result : null}
+                agentEngine={agentEngine}
                 onSendAnother={reset}
                 onClose={() => setOpen(false)}
               />
@@ -491,10 +494,12 @@ export default function FeedbackWidget() {
 
 function SuccessPanel({
   result,
+  agentEngine,
   onSendAnother,
   onClose,
 }: {
   result: TriageResult | null;
+  agentEngine?: "both" | "adk" | "managed-agent";
   onSendAnother: () => void;
   onClose: () => void;
 }) {
@@ -508,9 +513,18 @@ function SuccessPanel({
           Thanks! Your wish was received.
         </p>
         {!result && (
-          <p className="mt-1 text-xs text-[#6b7280]">
-            Our autonomous AI agent is triaging the codebase in the background.
-          </p>
+          <div className="mt-2 space-y-1 text-xs text-[#6b7280]">
+            <p>
+              {agentEngine === "both"
+                ? "Both Google ADK and Vertex Managed Agent are triaging your feedback concurrently to generate and compare pull requests."
+                : agentEngine === "adk"
+                  ? "Google ADK Agent is triaging your feedback in the background."
+                  : "Vertex AI Managed Agent is triaging your feedback in the background."}
+            </p>
+            <p className="font-mono text-[11px] text-[#9ca3af]">
+              Model: gemini-3.8-flash (global)
+            </p>
+          </div>
         )}
       </div>
 

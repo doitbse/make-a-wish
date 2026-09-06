@@ -49,7 +49,27 @@ export default function FeedbackBoardPage() {
   };
 
   useEffect(() => {
-    fetchItems();
+    let ignore = false;
+    async function load() {
+      try {
+        const res = await fetch("/api/feedback");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as StoredFeedback[];
+        if (!ignore) {
+          setItems(data);
+          setLoading(false);
+        }
+      } catch (err) {
+        if (!ignore) {
+          setError(err instanceof Error ? err.message : "Failed to load submissions");
+          setLoading(false);
+        }
+      }
+    }
+    load();
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   const stats = useMemo(() => {

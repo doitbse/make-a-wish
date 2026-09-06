@@ -10,7 +10,7 @@ export class MakeAWishWidgetElement extends HTMLElement {
   }
 
   static get observedAttributes() {
-    return ["data-app", "data-repo", "data-repos", "data-api", "data-user", "data-position"];
+    return ["data-app", "data-repo", "data-repos", "data-api", "data-user", "data-user-email", "data-position"];
   }
 
   connectedCallback() {
@@ -28,19 +28,23 @@ export class MakeAWishWidgetElement extends HTMLElement {
       partial.repo = repos[0] || "";
     }
     if (name === "data-api") partial.apiUrl = newValue;
-    if (name === "data-user") partial.userEmail = newValue;
+    if (name === "data-user" || name === "data-user-email") partial.userEmail = newValue;
     if (name === "data-position") partial.position = newValue as "bottom-right" | "bottom-left";
     this.ui.updateConfig(partial);
   }
 
   private resolveConfig(): WidgetConfig {
     const repos = parseRepos(this.getAttribute("data-repos"), this.getAttribute("data-repo"));
+    const email =
+      this.getAttribute("data-user-email") ||
+      this.getAttribute("data-user") ||
+      (typeof window !== "undefined" ? (window as any).__USER_EMAIL__ || (window as any).USER_EMAIL : undefined);
     return {
       appId: this.getAttribute("data-app") || "",
       repo: repos[0] || "",
       repos: repos,
       apiUrl: this.getAttribute("data-api") || window.location.origin,
-      userEmail: this.getAttribute("data-user") || undefined,
+      userEmail: email || undefined,
       position: (this.getAttribute("data-position") as "bottom-right" | "bottom-left") || "bottom-right",
     };
   }
@@ -79,7 +83,10 @@ function autoInitialize() {
     const rawRepo = currentScript.getAttribute("data-repo");
     const repos = parseRepos(rawRepos, rawRepo);
     apiUrl = currentScript.getAttribute("data-api") || scriptOrigin;
-    userEmail = currentScript.getAttribute("data-user") || "";
+    userEmail =
+      currentScript.getAttribute("data-user-email") ||
+      currentScript.getAttribute("data-user") ||
+      "";
     const pos = currentScript.getAttribute("data-position");
     if (pos === "bottom-left" || pos === "bottom-right") {
       position = pos;
@@ -97,7 +104,10 @@ function autoInitialize() {
       widget.setAttribute("data-repo", repos[0]);
     }
     if (apiUrl) widget.setAttribute("data-api", apiUrl);
-    if (userEmail) widget.setAttribute("data-user", userEmail);
+    if (userEmail) {
+      widget.setAttribute("data-user", userEmail);
+      widget.setAttribute("data-user-email", userEmail);
+    }
     widget.setAttribute("data-position", position);
 
     document.body.appendChild(widget);

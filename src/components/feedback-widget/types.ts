@@ -28,6 +28,7 @@ export interface FeedbackSubmission {
   url: string;
   userAgent: string;
   timestamp: string;
+  agentMode?: "both" | "adk" | "managed-agent";
 }
 
 // Shape returned by the companion triage service. Kept intentionally loose.
