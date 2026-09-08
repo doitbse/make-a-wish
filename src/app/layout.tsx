@@ -29,6 +29,7 @@ export default function RootLayout({
           src="/widget.js"
           data-app="acme-analytics"
           data-repo="doitbse/make-a-wish"
+          data-api="https://wish.internal.doit.com"
           strategy="afterInteractive"
         />
       </body>
