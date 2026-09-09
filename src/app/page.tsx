@@ -1,11 +1,12 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 
 /**
  * Sample product surface ("Acme Analytics") used to exercise the feedback
  * widget. It's deliberately full of distinct, clickable DOM elements so the
- * annotation feature has something real to target. Several bits are
- * intentionally rough (empty filter dropdown, inert refresh) — that's the
- * point of a testing site.
+ * annotation feature has something real to target.
  */
 
 const KPIS = [
@@ -27,6 +28,13 @@ const ROWS = [
 ];
 
 export default function Home() {
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const filteredRows =
+    statusFilter === "all"
+      ? ROWS
+      : ROWS.filter((r) => r.status === statusFilter);
+
   return (
     <div className="flex min-h-full flex-col">
       {/* Top nav */}
@@ -152,18 +160,20 @@ export default function Home() {
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
             <h2 className="text-sm font-semibold text-slate-900">Accounts</h2>
             <div className="flex items-center gap-2">
-              {/* Intentionally empty / broken filter — perfect annotation target */}
               <select
                 aria-label="Filter by status"
-                className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-400"
-                defaultValue=""
+                className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
               >
-                <option value="" disabled>
-                  Filter…
-                </option>
+                <option value="all">All statuses</option>
+                <option value="Active">Active</option>
+                <option value="Trial">Trial</option>
+                <option value="Past due">Past due</option>
               </select>
               <button
                 type="button"
+                onClick={() => setStatusFilter("all")}
                 className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-300"
               >
                 Refresh
@@ -180,31 +190,42 @@ export default function Home() {
               </tr>
             </thead>
             <tbody>
-              {ROWS.map((r, i) => (
-                <tr
-                  key={i}
-                  className="border-b border-slate-50 last:border-0 hover:bg-slate-50"
-                >
-                  <td className="px-5 py-2.5 font-medium text-slate-900">
-                    {r.plan}
-                  </td>
-                  <td className="px-5 py-2.5 text-slate-600">{r.users}</td>
-                  <td className="px-5 py-2.5 text-slate-600">{r.mrr}</td>
-                  <td className="px-5 py-2.5">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        r.status === "Active"
-                          ? "bg-green-100 text-green-700"
-                          : r.status === "Trial"
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      {r.status}
-                    </span>
+              {filteredRows.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={4}
+                    className="px-5 py-6 text-center text-xs text-slate-400"
+                  >
+                    No accounts found for status &ldquo;{statusFilter}&rdquo;.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredRows.map((r, i) => (
+                  <tr
+                    key={i}
+                    className="border-b border-slate-50 last:border-0 hover:bg-slate-50"
+                  >
+                    <td className="px-5 py-2.5 font-medium text-slate-900">
+                      {r.plan}
+                    </td>
+                    <td className="px-5 py-2.5 text-slate-600">{r.users}</td>
+                    <td className="px-5 py-2.5 text-slate-600">{r.mrr}</td>
+                    <td className="px-5 py-2.5">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                          r.status === "Active"
+                            ? "bg-green-100 text-green-700"
+                            : r.status === "Trial"
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {r.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </section>
