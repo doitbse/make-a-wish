@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Make-a-Wish Agent: System Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* ---- DoiT 2026 Brand Palette (Bright Corporate) ---- */
+    --ink: #1C1E35;            /* primary text */
+    --ink-light: #334155;      /* secondary text */
+    --body: #64748B;           /* body / dim labels */
+    --pink: #FC3264;           /* brand accent */
+    --pink-tint: #FDE7EE;      /* pill / badge background */
+    --pink-border: rgba(252, 50, 100, 0.3);
+    
+    --blue: #0284C7;
+    --blue-tint: #E0F2FE;
+    --blue-border: rgba(2, 132, 199, 0.3);
+
+    --purple: #7C3AED;
+    --purple-tint: #F3E8FF;
+    --purple-border: rgba(124, 58, 237, 0.3);
+
+    --amber: #D97706;
+    --amber-tint: #FEF3C7;
+    --amber-border: rgba(217, 119, 6, 0.3);
+
+    --emerald: #059669;
+    --emerald-tint: #D1FAE5;
+    --emerald-border: rgba(5, 150, 105, 0.3);
+
+    --line: #E2E8F0;
+    --card-bg: #FFFFFF;
+    --zone-bg: #F8FAFC;
+    
+    --font-serif: Georgia, 'Times New Roman', serif;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --duration-normal: 0.6s;
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  body, html {
+    margin: 0;
+    padding: 0;
+    background: #0b0b16;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+  }
+
+  /* 1920x1080 Scaled Canvas */
+  .slide {
+    width: 1920px;
+    height: 1080px;
+    background-color: #FFFFFF;
+    background-image: url('assets/bg-content.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(var(--scale-factor, 1));
+    overflow: hidden;
+    font-family: var(--font-sans);
+    color: var(--ink);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.5s ease, visibility 0.5s ease;
+    padding: 0;
+  }
+
+  .slide.active {
+    opacity: 1;
+    visibility: visible;
+    z-index: 10;
+  }
+
+  /* ==================== HEADER (DoiT 2026 Brand) ==================== */
+  .header-bar {
+    position: absolute;
+    top: 40px;
+    left: 80px;
+    right: 80px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding-left: 170px; /* Clears the baked-in DoiT logo */
+    border-bottom: 1.5px solid var(--line);
+    padding-bottom: 18px;
+    z-index: 10;
+  }
+
+  .header-titles {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .header-eyebrow {
+    font-family: var(--font-sans);
+    font-size: 13.5px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--pink);
+    margin-bottom: 4px;
+  }
+
+  .header-title {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    font-size: 42px;
+    line-height: 1.1;
+    color: var(--ink);
+    margin: 0;
+  }
+
+  .header-title em {
+    font-style: italic;
+    color: var(--pink);
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .zone-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 5px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: #FFFFFF;
+    color: var(--ink-light);
+  }
+
+  .zone-pill .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  /* ==================== ARCHITECTURE CANVAS STAGE ==================== */
+  .canvas-stage {
+    position: absolute;
+    top: 155px;
+    left: 70px;
+    width: 1780px;
+    height: 750px;
+  }
+
+  /* Zone Backgrounds (4 Tiers) */
+  .zone-bg {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-radius: 16px;
+    border: 1.5px dashed var(--line);
+    background: var(--zone-bg);
+    padding: 12px 16px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .zone-title {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--body);
+  }
+
+  .zone-1 { left: 0px; width: 290px; }
+  .zone-2 { left: 330px; width: 430px; }
+  .zone-3 { left: 840px; width: 410px; }
+  .zone-4 { left: 1340px; width: 440px; }
+
+  /* ==================== ARCHITECTURE NODES ==================== */
+  .node-box {
+    position: absolute;
+    background: var(--card-bg);
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    padding: 14px 16px;
+    box-shadow: 0 4px 18px rgba(15, 23, 42, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    z-index: 2;
+  }
+
+  .node-box:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  }
+
+  .node-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .icon-tile {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .icon-tile .material-symbols-outlined {
+    font-size: 22px;
+  }
+
+  .icon-tile.blue { background: var(--blue-tint); }
+  .icon-tile.blue .material-symbols-outlined { color: var(--blue); }
+
+  .icon-tile.purple { background: var(--purple-tint); }
+  .icon-tile.purple .material-symbols-outlined { color: var(--purple); }
+
+  .icon-tile.amber { background: var(--amber-tint); }
+  .icon-tile.amber .material-symbols-outlined { color: var(--amber); }
+
+  .icon-tile.pink { background: var(--pink-tint); }
+  .icon-tile.pink .material-symbols-outlined { color: var(--pink); }
+
+  .icon-tile.emerald { background: var(--emerald-tint); }
+  .icon-tile.emerald .material-symbols-outlined { color: var(--emerald); }
+
+  .node-title-group {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .node-title {
+    font-family: var(--font-sans);
+    font-size: 15.5px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.2;
+  }
+
+  .node-subtitle {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--body);
+    margin-top: 2px;
+  }
+
+  .node-meta-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .meta-pill {
+    font-size: 10px;
+    font-weight: 500;
+    padding: 3px 7px;
+    border-radius: 5px;
+    background: #F1F5F9;
+    border: 1px solid var(--line);
+    color: var(--ink-light);
+    font-family: var(--font-mono);
+  }
+
+  .meta-pill.highlight {
+    background: var(--pink-tint);
+    border-color: var(--pink-border);
+    color: var(--pink);
+  }
+
+  .meta-pill.amber-tag {
+    background: var(--amber-tint);
+    border-color: var(--amber-border);
+    color: var(--amber);
+  }
+
+  .meta-pill.green-tag {
+    background: var(--emerald-tint);
+    border-color: var(--emerald-border);
+    color: var(--emerald);
+  }
+
+  /* Node Accents (Bright Top Colored Borders) */
+  .node-blue { border-top: 3.5px solid var(--blue); }
+  .node-purple { border-top: 3.5px solid var(--purple); }
+  .node-pink { border-top: 3.5px solid var(--pink); }
+  .node-amber { border-top: 3.5px solid var(--amber); background: #FFFCF5; }
+  .node-emerald { border-top: 3.5px solid var(--emerald); background: #F8FCF9; }
+
+  /* Node Exact Coordinates (Matches media_1788971850636) */
+  /* ZONE 1 (0 to 290) */
+  #node-widget { left: 10px; top: 50px; width: 270px; }
+  #node-iap { left: 10px; top: 430px; width: 270px; }
+
+  /* ZONE 2 (330 to 760) */
+  #node-gemini { left: 350px; top: 40px; width: 390px; }
+  #node-agent-service { left: 350px; top: 250px; width: 390px; }
+  #node-firestore { left: 350px; top: 490px; width: 390px; }
+
+  /* ZONE 3 (840 to 1250) */
+  #node-duplicate-branch { left: 860px; top: 40px; width: 370px; }
+  #node-sandbox-worktree { left: 860px; top: 270px; width: 370px; }
+
+  /* ZONE 4 (1340 to 1780) */
+  #node-github-pr { left: 1360px; top: 140px; width: 390px; }
+  #node-review-resolver { left: 1360px; top: 440px; width: 390px; }
+
+  /* Tool Execution Chain Inside Sandbox Node */
+  .tool-chain {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: #F8FAFC;
+    border-radius: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+  }
+
+  .tool-item {
+    font-size: 10.5px;
+    font-family: var(--font-mono);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--ink);
+  }
+
+  .tool-badge {
+    font-size: 8.5px;
+    font-weight: 700;
+    padding: 2px 5px;
+    border-radius: 3px;
+    background: var(--pink-tint);
+    color: var(--pink);
+    border: 1px solid var(--pink-border);
+  }
+
+  .tool-badge.test-pass {
+    background: var(--emerald-tint);
+    color: var(--emerald);
+    border-color: var(--emerald-border);
+  }
+
+  /* ==================== SVG CONNECTING ARROWS ==================== */
+  .svg-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1780px;
+    height: 750px;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .flow-line {
+    fill: none;
+    stroke: var(--pink);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+  }
+
+  .flow-line-dashed {
+    fill: none;
+    stroke: var(--amber);
+    stroke-width: 2.2;
+    stroke-dasharray: 6, 6;
+  }
+
+  .flow-line-emerald {
+    fill: none;
+    stroke: var(--emerald);
+    stroke-width: 2.5;
+    stroke-dasharray: 6, 6;
+  }
+
+  .flow-line-blue {
+    fill: none;
+    stroke: var(--blue);
+    stroke-width: 2.5;
+  }
+
+  
+  .badge-text {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .flow-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    fill: var(--ink);
+    paint-order: stroke;
+    stroke: #FFFFFF;
+    stroke-width: 5px;
+    stroke-linejoin: round;
+  }
+
+  /* ==================== BOTTOM METRIC STRIP ==================== */
+  .bottom-bar {
+    position: absolute;
+    top: 925px;
+    left: 70px;
+    right: 70px;
+    height: 64px;
+    background: #FFFFFF;
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+    padding: 0 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
+    z-index: 10;
+  }
+
+  .kpi-group {
+    display: flex;
+    align-items: center;
+    gap: 36px;
+  }
+
+  .kpi-node {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .kpi-val {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--pink);
+    font-family: var(--font-mono);
+  }
+
+  .kpi-lbl {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--body);
+  }
+
+  .human-loop-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-light);
+  }
+
+  .human-loop-badge .material-symbols-outlined {
+    font-size: 18px;
+    color: var(--emerald);
+  }
+
+  /* ==================== SPEAKER NOTES PANEL ==================== */
+  body.presenter-mode .slide {
+    left: 8.5% !important;
+    transform: translate(-50%, -50%) scale(calc(var(--scale-factor) * 0.15)) !important;
+  }
+
+  #speaker-notes-panel {
+    position: fixed;
+    top: 0;
+    right: -100%;
+    width: 83.33%;
+    min-width: 800px;
+    height: 100vh;
+    background: #111;
+    color: #fff;
+    z-index: 2000;
+    transition: right 0.3s ease;
+    border-left: 2px solid var(--pink);
+    display: flex;
+    flex-direction: column;
+    font-family: var(--font-sans);
+  }
+
+  body.presenter-mode #speaker-notes-panel { right: 0; }
+
+  #speaker-notes-header {
+    background: #000;
+    padding: 20px 30px;
+    border-bottom: 1px solid #333;
+    font-weight: bold;
+    font-size: 22px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  #speaker-notes-content {
+    padding: 30px 40px;
+    flex-grow: 1;
+    overflow-y: auto;
+    font-size: 24px;
+    line-height: 1.6;
+    color: #ddd;
+  }
+
+  #speaker-notes-content strong { color: var(--pink); }
+  #speaker-notes-content code { color: #38BDF8; font-family: var(--font-mono); }
+
+  .notes { display: none !important; }
+
+  /* Print to PDF */
+  @media print {
+    @page { size: 1920px 1080px; margin: 0; }
+    body, html { overflow: visible !important; height: auto !important; }
+    .slide {
+      position: relative !important;
+      transform: none !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+      page-break-after: always;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    #speaker-notes-panel { display: none !important; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- ==================== SPEAKER NOTES PANEL ==================== -->
+  <div id="speaker-notes-panel">
+    <div id="speaker-notes-header">
+      <span>Make-a-Wish Agent: Architecture Walkthrough</span>
+      <span style="font-size: 15px; color: #94A3B8;">Press 'S' to Toggle</span>
+    </div>
+    <div id="speaker-notes-content">
+      <p><strong>Architecture Pitch for Manager, VP, and Director:</strong></p>
+      <ul>
+        <li><strong>Left to Right Flow:</strong>
+          <ol>
+            <li><strong>Zone 1 (Ingestion):</strong> User taps the floating widget in any web app. It captures high-res screenshot annotations and automatically extracts the user's Google Cloud IAP email without forms.</li>
+            <li><strong>Zone 2 (AI &amp; Orchestration):</strong> Cloud Run orchestrator invokes <code>Gemini 3.8 Flash</code> using the Google ADK. System instructions are pre-cached for 30 minutes, cutting latency to sub-second.</li>
+            <li><strong>Zone 2 (Semantic Vector Search):</strong> Agent checks Cloud Firestore using <code>findNearest(COSINE)</code>:
+              <ul>
+                <li><strong>Branch A (Duplicate &gt;80%):</strong> Calls <code>upvote_feature_request()</code>. Upvotes the existing feature on the <code>/vote</code> board and adds an audit comment. <strong>Zero duplicate PR spam.</strong></li>
+                <li><strong>Branch B (Unique):</strong> Advances to autonomous coding.</li>
+              </ul>
+            </li>
+            <li><strong>Zone 3 (Sandboxed Execution):</strong> Spawns an ephemeral git worktree in <code>/tmp</code>. Uses surgical tools (<code>search_code</code>, <code>replace_in_file</code>) and executes <code>npm run build &amp;&amp; npm test</code> before committing.</li>
+            <li><strong>Zone 4 (Delivery &amp; Self-Healing Loop):</strong> Pushes branch and opens GitHub PR with auto-generated PRD spec. If reviewers comment on the PR, the Review Resolver agent listens via webhook, applies fixes, pushes new commits, and auto-resolves review threads via GraphQL.</li>
+          </ol>
+        </li>
+        <li><strong>Executive Bottom Line:</strong> Total end-to-end turnaround is under 45 seconds, 100% sandboxed inside DoiT's GCP perimeter, and human engineers retain final merge approval.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ==================== MASTER ARCHITECTURE SLIDE ==================== -->
+  <div class="slide active" id="slide1">
+
+    <!-- Top Header -->
+    <div class="header-bar">
+      <div class="header-titles">
+        <div class="header-eyebrow">Autonomous Engineering Platform</div>
+        <div class="header-title">Make-a-Wish Agent: <em>System Architecture</em></div>
+      </div>
+      <div class="header-right">
+        <div class="zone-pill"><span class="dot" style="background:var(--blue);"></span> Ingestion</div>
+        <div class="zone-pill"><span class="dot" style="background:var(--purple);"></span> Gemini 3.8 / ADK</div>
+        <div class="zone-pill"><span class="dot" style="background:var(--pink);"></span> Sandboxed Worktree</div>
+        <div class="zone-pill"><span class="dot" style="background:var(--emerald);"></span> GitHub &amp; Resolver</div>
+      </div>
+    </div>
+
+    <!-- Architecture Canvas Stage -->
+    <div class="canvas-stage">
+
+      <!-- Zone Containers (Background Tiers) -->
+      <div class="zone-bg zone-1">
+        <span class="zone-title">01 · Ingestion Tier</span>
+      </div>
+      <div class="zone-bg zone-2">
+        <span class="zone-title">02 · Orchestration &amp; AI Intelligence Tier (GCP)</span>
+      </div>
+      <div class="zone-bg zone-3">
+        <span class="zone-title">03 · Execution Sandbox</span>
+      </div>
+      <div class="zone-bg zone-4">
+        <span class="zone-title">04 · Delivery &amp; Self-Healing Loop</span>
+      </div>
+
+            <!-- ================= SVG CONNECTING ARROWS ================= -->
+      <svg class="svg-canvas" viewBox="0 0 1780 750">
+        <defs>
+          <filter id="badge-shadow" x="-10%" y="-20%" width="120%" height="150%">
+            <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.06"/>
+          </filter>
+
+          <marker id="arrow-pink" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="#FC3264" />
+          </marker>
+          <marker id="arrow-blue" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="#0284C7" />
+          </marker>
+          <marker id="arrow-amber" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="#D97706" />
+          </marker>
+          <marker id="arrow-emerald" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="#059669" />
+          </marker>
+        </defs>
+
+        <!-- 1. Widget to IAP -->
+        <path d="M 145 185 L 145 425" class="flow-line-blue" marker-end="url(#arrow-blue)" />
+        <g filter="url(#badge-shadow)">
+          <rect x="155" y="293" width="176" height="24" rx="6" fill="#FFFFFF" stroke="#0284C7" stroke-width="1.2" />
+          <text x="165" y="309" class="badge-text" fill="#0284C7">① Annotations &amp; Context</text>
+        </g>
+
+        <!-- 2. IAP to Cloud Run Orchestrator -->
+        <path d="M 280 495 C 315 495, 315 325, 350 325" class="flow-line-blue" marker-end="url(#arrow-blue)" />
+        <g filter="url(#badge-shadow)">
+          <rect x="238" y="398" width="154" height="24" rx="6" fill="#FFFFFF" stroke="#0284C7" stroke-width="1.2" />
+          <text x="315" y="414" class="badge-text" text-anchor="middle" fill="#0284C7">② Verified Identity</text>
+        </g>
+
+        <!-- 3. Cloud Run <-> Gemini -->
+        <path d="M 525 250 L 525 170" class="flow-line" marker-end="url(#arrow-pink)" />
+        <path d="M 565 170 L 565 250" class="flow-line" marker-end="url(#arrow-pink)" />
+        <g filter="url(#badge-shadow)">
+          <rect x="582" y="198" width="198" height="24" rx="6" fill="#FFFFFF" stroke="#FC3264" stroke-width="1.2" />
+          <text x="592" y="214" class="badge-text" fill="#FC3264">③ 30m Cache &amp; Tool Decider</text>
+        </g>
+
+        <!-- 4. Cloud Run <-> Firestore -->
+        <path d="M 545 390 L 545 485" class="flow-line" marker-end="url(#arrow-pink)" />
+        <g filter="url(#badge-shadow)">
+          <rect x="558" y="426" width="176" height="24" rx="6" fill="#FFFFFF" stroke="#FC3264" stroke-width="1.2" />
+          <text x="568" y="442" class="badge-text" fill="#FC3264">④ Vector Search (Cosine)</text>
+        </g>
+
+        <!-- 5a. Decision Split: To Duplicate Gate -->
+        <path d="M 740 290 C 800 290, 800 100, 860 100" class="flow-line-dashed" marker-end="url(#arrow-amber)" />
+        <g filter="url(#badge-shadow)">
+          <rect x="705" y="178" width="188" height="24" rx="6" fill="#FFFCF5" stroke="#D97706" stroke-width="1.2" />
+          <text x="799" y="194" class="badge-text" text-anchor="middle" fill="#D97706">⑤a Duplicate (&gt;80%)</text>
+        </g>
+
+        <!-- 5b. Duplicate Gate to Firestore (Auto-Merge Vote) -->
+        <path d="M 860 130 C 790 130, 790 530, 740 530" class="flow-line-dashed" marker-end="url(#arrow-amber)" />
+        <g filter="url(#badge-shadow)">
+          <rect x="732" y="475" width="136" height="24" rx="6" fill="#FFFCF5" stroke="#D97706" stroke-width="1.2" />
+          <text x="800" y="491" class="badge-text" text-anchor="middle" fill="#D97706">Merge Vote &amp; Halt</text>
+        </g>
+
+        <!-- 5c. Decision Split: To Sandboxed Worktree -->
+        <path d="M 740 345 L 860 345" class="flow-line" marker-end="url(#arrow-pink)" />
+        <g filter="url(#badge-shadow)">
+          <rect x="760" y="333" width="80" height="24" rx="6" fill="#FFFFFF" stroke="#FC3264" stroke-width="1.2" />
+          <text x="800" y="349" class="badge-text" text-anchor="middle" fill="#FC3264">⑤b Unique</text>
+        </g>
+
+        <!-- 6. Sandboxed Worktree -> GitHub PR Engine -->
+        <path d="M 1230 350 C 1295 350, 1295 200, 1360 200" class="flow-line" marker-end="url(#arrow-pink)" />
+        <g filter="url(#badge-shadow)">
+          <rect x="1232" y="260" width="150" height="24" rx="6" fill="#FFFFFF" stroke="#FC3264" stroke-width="1.2" />
+          <text x="1307" y="276" class="badge-text" text-anchor="middle" fill="#FC3264">⑥ Push Branch &amp; PR</text>
+        </g>
+
+        <!-- 7. GitHub -> Review Resolver (Webhook) -->
+        <path d="M 1630 270 L 1630 435" class="flow-line-emerald" marker-end="url(#arrow-emerald)" />
+        <g filter="url(#badge-shadow)">
+          <rect x="1562" y="340" width="136" height="24" rx="6" fill="#F8FCF9" stroke="#059669" stroke-width="1.2" />
+          <text x="1630" y="356" class="badge-text" text-anchor="middle" fill="#059669">⑦ Review Webhook</text>
+        </g>
+
+        <!-- 8. Review Resolver -> GitHub (Auto Resolve Loop) -->
+        <path d="M 1480 435 C 1430 385, 1430 330, 1480 275" class="flow-line-emerald" marker-end="url(#arrow-emerald)" />
+        <g filter="url(#badge-shadow)">
+          <rect x="1382" y="340" width="148" height="24" rx="6" fill="#F8FCF9" stroke="#059669" stroke-width="1.2" />
+          <text x="1456" y="356" class="badge-text" text-anchor="middle" fill="#059669">⑧ Auto-Fix &amp; Resolve</text>
+        </g>
+      </svg>
+
+
+      <!-- ================= ARCHITECTURE NODES ================= -->
+
+      <!-- NODE 1: WIDGET -->
+      <div class="node-box node-blue" id="node-widget">
+        <div class="node-header">
+          <div class="icon-tile blue"><span class="material-symbols-outlined">laptop_mac</span></div>
+          <div class="node-title-group">
+            <div class="node-title">Host Web Application</div>
+            <div class="node-subtitle">&lt;make-a-wish-widget&gt;</div>
+          </div>
+        </div>
+        <div class="node-meta-pills">
+          <span class="meta-pill">DOM Snapshot</span>
+          <span class="meta-pill">Canvas Annotation</span>
+          <span class="meta-pill">Route URL</span>
+        </div>
+      </div>
+
+      <!-- NODE 2: IAP -->
+      <div class="node-box node-blue" id="node-iap">
+        <div class="node-header">
+          <div class="icon-tile blue"><span class="material-symbols-outlined">verified_user</span></div>
+          <div class="node-title-group">
+            <div class="node-title">Google Cloud IAP</div>
+            <div class="node-subtitle">Identity-Aware Proxy Gate</div>
+          </div>
+        </div>
+        <div class="node-meta-pills">
+          <span class="meta-pill highlight">x-goog-authenticated-user</span>
+          <span class="meta-pill">Zero-Trust Auth</span>
+        </div>
+      </div>
+
+      <!-- NODE 3: GEMINI 3.8 FLASH -->
+      <div class="node-box node-purple" id="node-gemini">
+        <div class="node-header">
+          <div class="icon-tile purple"><span class="material-symbols-outlined">auto_awesome</span></div>
+          <div class="node-title-group">
+            <div class="node-title">Vertex AI: Gemini 3.8 Flash</div>
+            <div class="node-subtitle">Autonomous Reasoning Engine</div>
+          </div>
+        </div>
+        <div class="node-meta-pills">
+          <span class="meta-pill highlight">Google ADK</span>
+          <span class="meta-pill highlight">30m Context Cache</span>
+          <span class="meta-pill">&lt;1s Latency</span>
+          <span class="meta-pill">JSON Schema</span>
+        </div>
+      </div>
+
+      <!-- NODE 4: CLOUD RUN ORCHESTRATOR -->
+      <div class="node-box node-purple" id="node-agent-service">
+        <div class="node-header">
+          <div class="icon-tile purple"><span class="material-symbols-outlined">settings</span></div>
+          <div class="node-title-group">
+            <div class="node-title">Cloud Run: Make-a-Wish Agent</div>
+            <div class="node-subtitle">Core Platform Orchestrator</div>
+          </div>
+        </div>
+        <div class="node-meta-pills">
+          <span class="meta-pill">POST /api/feedback</span>
+          <span class="meta-pill">discover_project_context</span>
+          <span class="meta-pill">Tool Router</span>
+        </div>
+      </div>
+
+      <!-- NODE 5: FIRESTORE -->
+      <div class="node-box node-purple" id="node-firestore">
+        <div class="node-header">
+          <div class="icon-tile purple"><span class="material-symbols-outlined">database</span></div>
+          <div class="node-title-group">
+            <div class="node-title">Cloud Firestore</div>
+            <div class="node-subtitle">Vector DB &amp; Feature Catalog</div>
+          </div>
+        </div>
+        <div class="node-meta-pills">
+          <span class="meta-pill">findNearest(COSINE)</span>
+          <span class="meta-pill">/vote Upvotes Collection</span>
+          <span class="meta-pill">Audit Trail</span>
+        </div>
+      </div>
+
+      <!-- NODE 6: DUPLICATE MERGE -->
+      <div class="node-box node-amber" id="node-duplicate-branch">
+        <div class="node-header">
+          <div class="icon-tile amber"><span class="material-symbols-outlined">call_split</span></div>
+          <div class="node-title-group">
+            <div class="node-title" style="color:var(--amber);">Deduplication Gate</div>
+            <div class="node-subtitle">upvote_feature_request()</div>
+          </div>
+        </div>
+        <div class="node-meta-pills">
+          <span class="meta-pill amber-tag">Auto-Merge (+1 Upvote)</span>
+          <span class="meta-pill amber-tag">PR Suppressed (0 Noise)</span>
+        </div>
+      </div>
+
+      <!-- NODE 7: SANDBOX WORKTREE -->
+      <div class="node-box node-pink" id="node-sandbox-worktree">
+        <div class="node-header">
+          <div class="icon-tile pink"><span class="material-symbols-outlined">folder_zip</span></div>
+          <div class="node-title-group">
+            <div class="node-title">Ephemeral Git Worktree</div>
+            <div class="node-subtitle">Sandboxed /tmp/maw-* Target Repo</div>
+          </div>
+        </div>
+        <!-- Tool Execution Chain -->
+        <div class="tool-chain">
+          <div class="tool-item">
+            <span class="tool-badge">SEARCH</span> <code>search_code(ripgrep)</code>
+          </div>
+          <div class="tool-item">
+            <span class="tool-badge">READ</span> <code>view_file(path)</code>
+          </div>
+          <div class="tool-item">
+            <span class="tool-badge">EDIT</span> <code>replace_in_file(diff)</code>
+          </div>
+          <div class="tool-item">
+            <span class="tool-badge test-pass">TEST</span> <code>npm run build &amp;&amp; npm test</code>
+          </div>
+        </div>
+      </div>
+
+      <!-- NODE 8: GITHUB PR -->
+      <div class="node-box node-emerald" id="node-github-pr">
+        <div class="node-header">
+          <div class="icon-tile emerald"><span class="material-symbols-outlined">commit</span></div>
+          <div class="node-title-group">
+            <div class="node-title" style="color:var(--emerald);">GitHub Repository</div>
+            <div class="node-subtitle">Verified Pull Request Engine</div>
+          </div>
+        </div>
+        <div class="node-meta-pills">
+          <span class="meta-pill">Branch: maw/feature-*</span>
+          <span class="meta-pill green-tag">Auto PRD Spec</span>
+          <span class="meta-pill">Screenshot Attached</span>
+        </div>
+      </div>
+
+      <!-- NODE 9: REVIEW RESOLVER -->
+      <div class="node-box node-emerald" id="node-review-resolver">
+        <div class="node-header">
+          <div class="icon-tile emerald"><span class="material-symbols-outlined">sync</span></div>
+          <div class="node-title-group">
+            <div class="node-title" style="color:var(--emerald);">Review Resolver Agent</div>
+            <div class="node-subtitle">Self-Healing Feedback Loop</div>
+          </div>
+        </div>
+        <div class="node-meta-pills">
+          <span class="meta-pill green-tag">Webhook: Review Comments</span>
+          <span class="meta-pill green-tag">Pushes Fix Commits</span>
+          <span class="meta-pill green-tag">GraphQL: resolveThread</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Bottom Metric Banner (DoiT Bright Style) -->
+    <div class="bottom-bar">
+      <div class="kpi-group">
+        <div class="kpi-node">
+          <span class="kpi-val">&lt; 45s</span>
+          <span class="kpi-lbl">End-to-End Delivery</span>
+        </div>
+        <div class="kpi-node">
+          <span class="kpi-val">&gt; 70%</span>
+          <span class="kpi-lbl">Gemini Context Cache Savings</span>
+        </div>
+        <div class="kpi-node">
+          <span class="kpi-val">0 Spam</span>
+          <span class="kpi-lbl">Deduplication Gate</span>
+        </div>
+        <div class="kpi-node">
+          <span class="kpi-val" style="color:var(--emerald);">100%</span>
+          <span class="kpi-lbl">Sandboxed in DoiT GCP Perimeter</span>
+        </div>
+      </div>
+      <div class="human-loop-badge">
+        <span class="material-symbols-outlined">verified</span>
+        <span>Human-in-the-Loop: Engineers retain final merge authority</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==================== INTERACTIVE JAVASCRIPT ==================== -->
+  <script>
+    class SlidePresentation {
+      constructor() {
+        this.slides = document.querySelectorAll('.slide');
+        this.currentSlide = 0;
+        this.channel = new BroadcastChannel('presentation-sync');
+        this.isPresenterMode = false;
+
+        this.setupScaling();
+        this.setupNavigation();
+
+        this.channel.onmessage = (event) => {
+          if (event.data.type === 'NAVIGATE' && event.data.slideIndex !== this.currentSlide) {
+            this.goToSlide(event.data.slideIndex, false);
+          }
+        };
+
+        this.goToSlide(0, false);
+      }
+
+      setupScaling() {
+        const resize = () => {
+          const scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+          document.documentElement.style.setProperty('--scale-factor', scale);
+        };
+        window.addEventListener('resize', resize);
+        resize();
+      }
+
+      setupNavigation() {
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'ArrowRight' || e.key === 'Space' || e.key === 'PageDown') {
+            this.nextSlide();
+          } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+            this.prevSlide();
+          } else if (e.key.toLowerCase() === 's') {
+            this.togglePresenterMode();
+          }
+        });
+      }
+
+      togglePresenterMode() {
+        this.isPresenterMode = !this.isPresenterMode;
+        if (this.isPresenterMode) {
+          document.body.classList.add('presenter-mode');
+        } else {
+          document.body.classList.remove('presenter-mode');
+        }
+      }
+
+      goToSlide(index, broadcast = true) {
+        if (index < 0 || index >= this.slides.length) return;
+        this.slides[this.currentSlide].classList.remove('active');
+        this.currentSlide = index;
+        this.slides[this.currentSlide].classList.add('active');
+
+        if (broadcast) {
+          this.channel.postMessage({ type: 'NAVIGATE', slideIndex: index });
+        }
+      }
+
+      nextSlide() { this.goToSlide(this.currentSlide + 1); }
+      prevSlide() { this.goToSlide(this.currentSlide - 1); }
+    }
+
+    new SlidePresentation();
+  </script>
+</body>
+</html>
