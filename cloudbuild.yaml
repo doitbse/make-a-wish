@@ -28,7 +28,7 @@ steps:
       - '--region=$_REGION'
       - '--platform=managed'
       - '--allow-unauthenticated'
-      - '--ingress=internal-and-cloud-load-balancing'
+      - '--ingress=all'
       - '--set-env-vars=GCP_PROJECT_ID=$PROJECT_ID,NODE_ENV=production'
 
 substitutions:
