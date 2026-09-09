@@ -26,10 +26,19 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900">
         {children}
         <Script
+          id="maw-user-context"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `window.__USER_EMAIL__ = "sascha@doit.com";`,
+          }}
+        />
+        <Script
           src="/widget.js"
           data-app="acme-analytics"
           data-repo="doitbse/make-a-wish"
           data-api="https://wish.internal.doit.com"
+          data-user="sascha@doit.com"
+          data-user-email="sascha@doit.com"
           strategy="afterInteractive"
         />
       </body>
