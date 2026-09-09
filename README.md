@@ -6,6 +6,31 @@ This repository serves as the dedicated testbed application to exercise the feed
 
 > **Platform Repository**: The autonomous triage agent, Ops Dashboard, embeddable widget engine, and Terraform infrastructure reside in [`doitbse/make-a-wish-platform`](https://github.com/doitbse/make-a-wish-platform).
 
+## System Architecture
+
+![Make-a-Wish Agent: System Architecture](agent-architecture-presentation/assets/architecture-diagram.png)
+
+> **Interactive Presentation**: Open [`agent-architecture-presentation/index.html`](./agent-architecture-presentation/index.html) in any browser (press `S` for synchronized executive speaker notes, or `Cmd+P` to export to 1920x1080 PDF).
+
+### How the Agent Works
+
+1. **Zone 01 · Ingestion Tier**:
+   - **Host Web Application (`<make-a-wish-widget>`)**: End-user clicks widget &rarr; captures DOM snapshot, canvas annotation, route URL, and error logs.
+   - **Google Cloud IAP**: Identity-Aware Proxy extracts authenticated corporate employee email (`x-goog-authenticated-user`).
+
+2. **Zone 02 · Orchestration & AI Intelligence Tier (GCP)**:
+   - **Cloud Run Orchestrator**: Authenticated backend (`POST /api/feedback`) coordinates tool calling and project context discovery.
+   - **Vertex AI (`Gemini 3.8 Flash`)**: Reasoner leveraging a 30-minute system instruction cache (&lt;1s latency).
+   - **Cloud Firestore**: Vector DB (`findNearest(COSINE)`) cross-referencing wishes against existing issues and features.
+
+3. **Zone 03 · Execution Sandbox & Deduplication**:
+   - **Branch ⑤a (Duplicate &gt;80%)**: Diverts to **Deduplication Gate** &rarr; calls `upvote_feature_request()`, auto-increments upvotes on `/vote`, and halts (zero duplicate PR spam).
+   - **Branch ⑤b (Unique)**: Spawns an **Ephemeral Git Worktree** in `/tmp/maw-*`, runs surgical code inspection and editing tools (`search_code`, `view_file`, `replace_in_file`), and verifies builds (`npm run build && npm test`).
+
+4. **Zone 04 · Delivery & Self-Healing Loop**:
+   - **GitHub Repository**: Pushes branch `maw/feature-*` and creates a pull request with an auto-generated PRD spec and screenshot attached.
+   - **Review Resolver Agent**: Listens to review webhook comments, autonomously implements requested adjustments, pushes fix commits, and resolves review comment threads via GraphQL.
+
 ## Features
 
 - **Analytics Dashboard (`src/app/page.tsx`)**: A realistic analytics page with revenue overview charts, KPIs, and accounts table with deliberate interactive fixtures for testing.
