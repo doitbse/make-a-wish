@@ -61,7 +61,10 @@ export default function Home() {
             </Link>
           </nav>
           <div className="flex items-center gap-2">
-            <span className="hidden text-xs text-slate-400 sm:inline">
+            <span
+              className="hidden text-xs text-slate-400 sm:inline"
+              data-user-email="sascha@doit.com"
+            >
               sascha@doit.com
             </span>
             <div className="h-7 w-7 rounded-full bg-slate-200" />
