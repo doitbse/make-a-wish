@@ -1,0 +1,101 @@
+# AI code review on every pull request, via Gemini 3.8 Flash on Vertex.
+#
+# Fusion has to be off Claude-based PR review by end of August 2026 (Sebastian's cost mandate).
+# The complaint was not the price, it was that the review landed AFTER the merge and therefore
+# bought nothing, so the trigger matters more than the model. This fires on `pull_request`,
+# opened and every push, not on a label. `/gemini-review` in a comment re-runs it on demand.
+#
+# Auth is Workload Identity Federation: GitHub mints a short-lived OIDC token proving which repo
+# the run belongs to, and Google exchanges it for a ~1h token. No API key in this repo's secrets,
+# and inference runs in doit-wish-prod rather than against a consumer key outside DoiT's tenancy,
+# which matters because the reviewer sends repository contents as prompt context.
+#
+# The identity holds roles/aiplatform.user and nothing else. A PR reviewer runs against branch
+# code nobody has reviewed yet, so it must not be able to read secrets or deploy.
+name: "AI code review (Gemini)"
+
+on:
+  # NO branch filter on pull_request, deliberately. A base-branch filter means a PR whose base is
+  # anything other than the named branch gets NO review at all, and says so only by the quiet absence
+  # of a status rather than by failing. That silently skips stacked PRs, where every PR except the
+  # bottom one targets the branch below it, and any PR onto a release branch.
+  pull_request:
+  issue_comment:
+    types: [created]
+
+
+jobs:
+  review:
+    # Dependabot is excluded on purpose: its runs get a read-only token regardless of the
+    # permissions block below, so posting a review would 403 on every dependency bump.
+    #
+    # The author_association check on the comment path is load-bearing. `issue_comment` runs in
+    # the base repo's context, so without it any commenter could spend our Vertex quota.
+    if: |
+      github.actor != 'dependabot[bot]' &&
+      (
+        github.event_name == 'pull_request' ||
+        (
+          github.event_name == 'issue_comment' &&
+          github.event.issue.pull_request &&
+          startsWith(github.event.comment.body, '/gemini-review') &&
+          contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+        )
+      )
+    runs-on: ubuntu-latest
+    # Job level, NOT workflow level. At workflow level this group is evaluated when the run is
+    # QUEUED, before any job `if` runs, and an issue_comment payload has no top-level
+    # pull_request, so the key falls through to github.event.issue.number, which is the same PR
+    # number. Any comment on the PR would therefore queue a run into the same group and
+    # cancel-in-progress would kill the review already in flight, before the job could skip
+    # itself. Down here, cancellation only happens once a job is actually going to run.
+    concurrency:
+      group: gemini-review-${{ github.event.pull_request.number || github.event.issue.number }}
+      cancel-in-progress: true
+      # Deliberately NOT keyed on github.event_name. Adding it splits pull_request and issue_comment
+      # into separate queues, so a /gemini-review comment runs alongside an in-flight push review
+      # instead of superseding it. One review per PR at a time, newest wins.
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      statuses: write # the action posts a commit status; without this it logs a 403
+      id-token: write # WIF token exchange
+
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || format('refs/pull/{0}/head', github.event.issue.number) }}
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@fc2174804b84f912b1f6d334e9463f484f1c552d # v2
+        with:
+          workload_identity_provider: ${{ secrets.GEMINI_REVIEW_WIF_PROVIDER }}
+          service_account: ${{ secrets.GEMINI_REVIEW_WIF_SA }}
+
+      - name: Gemini review
+        # Pinned to the v1.6.7 commit, NOT @v1. This action runs arbitrary Python in CI with
+        # pull-requests: write, on a young single-maintainer repo. Bump deliberately.
+        uses: derailed-dash/gemini-review-action@107d7b4ba795509e8e5e2817849aafca317fd751 # v1.6.7
+        env:
+          # Use Vertex with ADC from the auth step instead of looking for GEMINI_API_KEY.
+          GOOGLE_GENAI_USE_VERTEXAI: "True"
+          # The project Vertex is called against, i.e. the one that pays. Note this
+          # is NOT the WIF project: the pool, provider (gemini-review-make-a-wish-site)
+          # and service account live in sascha-playground-doit, and only the billing
+          # and inference happen here. That works as long as
+          # make-a-wish-pr-reviewer@sascha-playground-doit holds roles/aiplatform.user
+          # on doit-wish-prod. Never point this at a personal project: a personal
+          # spend cap then gates review on a team repo, which is what happened to
+          # make-a-wish-platform on 2026-10-08.
+          GOOGLE_CLOUD_PROJECT: doit-wish-prod
+          GOOGLE_CLOUD_LOCATION: global
+        with:
+          # The action declares gemini_api_key required, but it is unused on the Vertex path and
+          # upstream's own WIF example omits it. Do not add one. That reintroduces the very
+          # credential this setup avoids.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          gemini_model: gemini-3.8-flash
+          language: English (UK)
+          persona: straight
