@@ -1,11 +1,13 @@
 import Link from "next/link";
 
+import AccountsTable from "@/components/AccountsTable";
+
 /**
  * Sample product surface ("Acme Analytics") used to exercise the feedback
  * widget. It's deliberately full of distinct, clickable DOM elements so the
- * annotation feature has something real to target. Several bits are
- * intentionally rough (empty filter dropdown, inert refresh) — that's the
- * point of a testing site.
+ * annotation feature has something real to target. Some bits are
+ * intentionally rough (the inert refresh button) — that's the point of a
+ * testing site.
  */
 
 const KPIS = [
@@ -147,70 +149,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Accounts table */}
-        <section
-          id="accounts"
-          className="mt-6 rounded-xl border border-slate-200 bg-white"
-        >
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
-            <h2 className="text-sm font-semibold text-slate-900">Accounts</h2>
-            <div className="flex items-center gap-2">
-              {/* Intentionally empty / broken filter — perfect annotation target */}
-              <select
-                aria-label="Filter by status"
-                className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-400"
-                defaultValue=""
-              >
-                <option value="" disabled>
-                  Filter…
-                </option>
-              </select>
-              <button
-                type="button"
-                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-300"
-              >
-                Refresh
-              </button>
-            </div>
-          </div>
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
-                <th className="px-5 py-2 font-medium">Plan</th>
-                <th className="px-5 py-2 font-medium">Users</th>
-                <th className="px-5 py-2 font-medium">MRR</th>
-                <th className="px-5 py-2 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ROWS.map((r, i) => (
-                <tr
-                  key={i}
-                  className="border-b border-slate-50 last:border-0 hover:bg-slate-50"
-                >
-                  <td className="px-5 py-2.5 font-medium text-slate-900">
-                    {r.plan}
-                  </td>
-                  <td className="px-5 py-2.5 text-slate-600">{r.users}</td>
-                  <td className="px-5 py-2.5 text-slate-600">{r.mrr}</td>
-                  <td className="px-5 py-2.5">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        r.status === "Active"
-                          ? "bg-green-100 text-green-700"
-                          : r.status === "Trial"
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      {r.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
+        <AccountsTable rows={ROWS} />
 
         <p className="mt-8 text-center text-xs text-slate-400">
           This is a dummy product surface for testing the feedback widget. Spot
