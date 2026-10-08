@@ -68,9 +68,12 @@ export default function AccountsTable({ rows }: { rows: AccountRow[] }) {
           </tr>
         </thead>
         <tbody>
-          {visible.map((r, i) => (
+          {visible.map((r) => (
             <tr
-              key={i}
+              // Composite of the row's own values, not the array index: the
+              // index refers to a different row once the list is filtered,
+              // which makes React reuse the wrong DOM node.
+              key={`${r.plan}-${r.users}-${r.mrr}-${r.status}`}
               className="border-b border-slate-50 last:border-0 hover:bg-slate-50"
             >
               <td className="px-5 py-2.5 font-medium text-slate-900">
