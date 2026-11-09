@@ -23,7 +23,7 @@ PATHS_A = ["firestore*.json", "**/firestore*", "**/firestore/**", "**/bigquery*"
            "**/service*.yaml",
            # event-driven handlers run once per event, so any change to them is a cost change
            "**/functions/**"]
-PATHS_B = ["**/SKILL.md", "**/skills/**", "**/prompts/**", "**/prompt*", "**/system-instruction*",
+PATHS_B = ["**/SKILL.md", "**/skills/**", "**/*_skills/**", "**/*-skills/**", "**/prompts/**", "**/prompt*", "**/system-instruction*",
            "**/system_instruction*", "**/agent/**", "**/agents/**", "**/.agents/**", "**/*_agent/**",
            "**/*-agent/**", "**/agent.py", "**/agent.ts", "**/*-agent.py", "**/*-agent.ts", "**/AGENTS.md", "**/CLAUDE.md", "**/GEMINI.md"]
 # Case-insensitive: Go's SDKs export PascalCase methods (`.Collection(`, `.Where(`, `.Bucket(`), Node and
@@ -139,16 +139,16 @@ def main():
     a = ap.parse_args()
     extra = None
     if os.path.exists(EXTRA):
-        with open(EXTRA) as f:
+        with open(EXTRA, encoding="utf-8") as f:
             extra = extra_paths(f.read())
     why = decide(files_from_pr(f"{os.environ['GITHUB_REPOSITORY']}#{a.pr}"), extra)[a.which]
     run = "true" if why else "false"
     if os.environ.get("GITHUB_OUTPUT"):
-        with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
             f.write(f"run={run}\n")
     lines = [f"Cost pass {a.which}: {'runs' if why else 'skipped, no matching file'}"] + [f"- {w}" for w in why[:20]]
     if os.environ.get("GITHUB_STEP_SUMMARY"):
-        with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
             f.write("\n".join(lines) + "\n")
     print("\n".join(lines))
 

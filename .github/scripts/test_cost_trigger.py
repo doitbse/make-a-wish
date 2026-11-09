@@ -103,6 +103,9 @@ class Decide(unittest.TestCase):
         self.assertEqual(passes([("slack-bot/answer.py", 'body = {"thinkingMode": "FAST"}')]), {"B"})
         self.assertEqual(passes([("web/lib/ask.ts", "const c = new DataChatServiceClient() // geminidataanalytics")]), {"B"})
 
+    def test_prefixed_skills_folders_start_b_by_path(self):
+        self.assertEqual(passes([("remit_skills/references/rates.md", "Use the weekly FX table.")]), {"B"})
+
     def test_agent_source_files_start_b_by_path(self):
         self.assertEqual(passes([("src/adk-agent.ts", "export const run = () => {}")]), {"B"})
 
