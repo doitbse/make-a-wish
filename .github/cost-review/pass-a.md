@@ -100,5 +100,6 @@ instead of asserting.
 Every finding names `path:line`, how often the code runs, and the fix (index, cache, batch, id
 lookup, limit, field mask, config value). Inline comments go on changed lines only: a cost problem in
 unchanged lines of a function the diff touches goes on the nearest changed line or in the summary, as
-⚪ **Pre-existing** with its own estimate, and it still counts. If you find nothing, the summary is
-exactly `No issues found.`
+⚪ **Pre-existing** with its own estimate, and it still counts. The summary MUST begin with the exact text `Cost review A:` followed by the counts, for example
+`Cost review A: 1 Important, 0 Nit, 0 Pre-existing.`, so this review can be told apart from the general
+review and counted. If you find nothing, the summary is exactly `Cost review A: no issues found.`

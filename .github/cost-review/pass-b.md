@@ -69,5 +69,6 @@ instead of asserting.
 ## Evidence
 
 Every finding names `path:line`, how often the code runs, and the fix (index, cache, batch, id
-lookup, config value). Inline comments go on changed lines only. If you find nothing, the summary is
-exactly `No issues found.`
+lookup, config value). Inline comments go on changed lines only. The summary MUST begin with the exact text `Cost review B:` followed by the counts, for example
+`Cost review B: 1 Important, 0 Nit, 0 Pre-existing.`, so this review can be told apart from the general
+review and counted. If you find nothing, the summary is exactly `Cost review B: no issues found.`
