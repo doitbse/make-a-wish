@@ -1,0 +1,137 @@
+# Cost review, pass A: cloud and data. Layer 4 of the review layers. Its check never fails;
+# its comments are review threads like any other, so the PR author fixes or answers them.
+#
+# Two focused cost passes: pass A for reads, indexes, caching, crons, paid APIs, Cloud Run and paid
+# tiers; pass B for prompts, skills, context caching, repeated model work, agent output and model tier.
+#
+# A first job (no model call) reads the PR's changed paths and added lines and starts this pass only
+# when they are about it (.github/scripts/cost_trigger.py).
+#
+# Its own workflow file, like security-review.yml, because the action names its commit status after the
+# workflow. Same action pin, identity and billing project as gemini-review.yml (the review-layers-setup
+# skill copies them from there); the prompt is the
+# action's starter prompt with context caching off (.github/cost-review.toml, see why there), and the
+# cost focus is the instructions file below.
+name: "Cost review A (Gemini)"
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+  # `/gemini-review` re-runs every review, this one included.
+  issue_comment:
+    types: [created]
+
+jobs:
+  trigger:
+    # Same gate as gemini-review.yml and security-review.yml.
+    if: |
+      github.actor != 'dependabot[bot]' &&
+      (
+        (
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        ) ||
+        (
+          github.event_name == 'issue_comment' &&
+          github.event.issue.pull_request &&
+          github.event.issue.state == 'open' &&
+          startsWith(github.event.comment.body, '/gemini-review') &&
+          contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+        )
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+    steps:
+      - name: Checkout the base branch
+        # The trigger script comes from the base branch, like the PR checks' scripts: a PR cannot
+        # rewrite the code that decides whether it is reviewed. It reads the PR through the API.
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Does this PR need pass A?
+        id: decide
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ ! -f .github/scripts/cost_trigger.py ]; then
+            echo "::notice::.github/scripts/cost_trigger.py is not on the base branch yet; skipped."
+            echo "run=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          python3 .github/scripts/cost_trigger.py --pass A --pr "${{ github.event.pull_request.number || github.event.issue.number }}"
+
+  cost-review:
+    needs: trigger
+    if: needs.trigger.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    # Its own group, so it never cancels the general, security or other cost review.
+    concurrency:
+      group: cost-review-a-${{ github.event.pull_request.number || github.event.issue.number }}
+      cancel-in-progress: true
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      statuses: write
+      id-token: write # WIF token exchange
+
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || format('refs/pull/{0}/head', github.event.issue.number) }}
+          persist-credentials: false
+
+      - name: Checkout the base branch's review config
+        # The prompt and the cost instructions come from the base branch, so a PR cannot rewrite the
+        # instructions that review it. Removed again below, so it is not part of the review context.
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.event.repository.default_branch }}
+          path: .cost-base
+          sparse-checkout: .github
+          persist-credentials: false
+
+      - name: Use the cost prompt
+        # Copy the prompt into the one place the action reads, in this job's workspace only, as the
+        # security job does. Refuses to overwrite a general prompt someone adds later.
+        run: |
+          if [ -e .github/commands/gemini-review.toml ]; then
+            echo "::error::.github/commands/gemini-review.toml exists; the cost job would overwrite it. Move one of the prompts."
+            exit 1
+          fi
+          mkdir -p .github/commands
+          cp .cost-base/.github/cost-review.toml .github/commands/gemini-review.toml
+          cp .cost-base/.github/cost-review/pass-a.md .github/cost-review-active.md
+          rm -rf .cost-base
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@fc2174804b84f912b1f6d334e9463f484f1c552d # v2
+        with:
+          workload_identity_provider: ${{ secrets.GEMINI_REVIEW_WIF_PROVIDER }}
+          service_account: ${{ secrets.GEMINI_REVIEW_WIF_SA }}
+
+      - name: Gemini cost review, pass A
+        # Same pinned commit as gemini-review.yml; bump all of them together.
+        uses: derailed-dash/gemini-review-action@107d7b4ba795509e8e5e2817849aafca317fd751 # v1.6.7
+        env:
+          GOOGLE_GENAI_USE_VERTEXAI: "True"
+          GOOGLE_CLOUD_PROJECT: doit-wish-prod
+          GOOGLE_CLOUD_LOCATION: global
+          DISABLE_DEVELOPER_KNOWLEDGE: "true"
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          gemini_model: gemini-3.8-flash
+          language: English (UK)
+          persona: straight
+          max_multimodal_images: "0"
+          custom_instructions: .github/cost-review-active.md
+          # The index list and deploy config, so the pass can say "this query has no index"
+          # (proposal: cost.context_files).
+          extra_context_files: cloudbuild.yaml
+          context_exclude_patterns: "package-lock.json"
+          billing_labels: review=cost-a
