@@ -28,7 +28,7 @@ PATHS_B = ["**/SKILL.md", "**/skills/**", "**/prompts/**", "**/prompt*", "**/sys
            "**/*-agent/**", "**/agent.py", "**/agent.ts", "**/AGENTS.md", "**/CLAUDE.md", "**/GEMINI.md"]
 # Case-insensitive: Go's SDKs export PascalCase methods (`.Collection(`, `.Where(`, `.Bucket(`), Node and
 # Python use camel or snake case for the same calls.
-CONTENT_A = [re.compile(p, re.I) for p in [
+CONTENT_A = [re.compile(p, re.IGNORECASE) for p in [
     r"\.collection\(", r"\.where\(", r"collectionGroup\(", r"onSnapshot\(", r"\.getAll\(",
     r"bigquery", r"--min-instances", r"--concurrency", r"--no-cpu-throttling",
     r"min_instance_count", r"cpu_idle", r"google_sql_database_instance", r"availability_type",
@@ -47,8 +47,8 @@ CONTENT_B = [re.compile(p) for p in [
     r"google\.adk", r"LlmAgent", r"\bAgent\(", r"root_agent", r"anthropic", r"openai",
     r"vertexai", r"\bgemini-", r"\bclaude-", r"system_instruction", r"systemInstruction",
     r"context_cache", r"max_output_tokens", r"maxOutputTokens"]]
-DOCS = re.compile(r"\.(md|mdx|txt|rst)$", re.I)          # content checks skip prose; agent .md files match by path
-CONFIG = re.compile(r"\.(ya?ml|json|toml|env|ini)$", re.I)  # pass B content checks skip config (model names in env vars)
+DOCS = re.compile(r"\.(md|mdx|txt|rst)$", re.IGNORECASE)          # content checks skip prose; agent .md files match by path
+CONFIG = re.compile(r"\.(ya?ml|json|toml|env|ini)$", re.IGNORECASE)  # pass B content checks skip config (model names in env vars)
 SKIP = re.compile(r"(^|/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock|uv\.lock|poetry\.lock|go\.sum)$"
                   r"|\.(png|jpe?g|gif|webp|svg|ico|woff2?|ttf|pdf|lock)$|\.lock\.hcl$"
                   r"|(^|/)(test|tests|__tests__|e2e)/|\.test\.|\.spec\.|_test\.|(^|/)test_[^/]*\.py$")
@@ -101,7 +101,7 @@ def files_from_pr(ref):
     raw = subprocess.run(["gh", "api", "--paginate", "--slurp", f"repos/{repo}/pulls/{n}/files?per_page=100"],
                          capture_output=True, text=True, check=True).stdout
     items = [f for page in (json.loads(raw) if raw.strip() else []) for f in page]
-    return [(f["filename"], "\n".join(l[1:] for l in (f.get("patch") or "").splitlines() if l.startswith("+")))
+    return [(f["filename"], "\n".join(line[1:] for line in (f.get("patch") or "").splitlines() if line.startswith("+")))
             for f in items]
 
 

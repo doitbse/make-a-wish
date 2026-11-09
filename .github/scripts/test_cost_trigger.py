@@ -1,10 +1,11 @@
 """Tests for cost_trigger.decide: which cost pass a PR's changed files start. No network."""
+import importlib
 import os
 import sys
 import unittest
 
 sys.path.insert(0, os.path.dirname(__file__))
-import cost_trigger as t  # noqa: E402
+t = importlib.import_module("cost_trigger")  # a module next to this file, without an import after code
 
 
 def passes(files):
