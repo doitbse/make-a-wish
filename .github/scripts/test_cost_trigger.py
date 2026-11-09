@@ -94,6 +94,32 @@ class Decide(unittest.TestCase):
                                  ("e2e/sourcing.spec.ts", "db.collection('x')"),
                                  ("terraform/.terraform.lock.hcl", 'provider "google" {}')]), set())
 
+    def test_select_distinct_and_nested_terraform_start_a(self):
+        self.assertEqual(passes([("web/lib/ar.ts", "const q = `SELECT DISTINCT customer_id FROM ar.invoices`")]), {"A"})
+        self.assertEqual(passes([("svc/deployment/terraform/README", "apply with -var-file")]), {"A"})
+        self.assertEqual(passes([("templates/env/terraform.tfvars.tmpl", 'db_tier = "{{ .Tier }}"')]), {"A"})
+
+    def test_conversational_analytics_and_thinking_settings_start_b(self):
+        self.assertEqual(passes([("slack-bot/answer.py", 'body = {"thinkingMode": "FAST"}')]), {"B"})
+        self.assertEqual(passes([("web/lib/ask.ts", "const c = new DataChatServiceClient() // geminidataanalytics")]), {"B"})
+
+    def test_agent_source_files_start_b_by_path(self):
+        self.assertEqual(passes([("src/adk-agent.ts", "export const run = () => {}")]), {"B"})
+
+
+class ExtraPaths(unittest.TestCase):
+    def test_repo_extra_paths_add_to_the_shared_ones(self):
+        extra = t.extra_paths("# analyst: rules decide the context of every question\nB rules/**\nA web/lib/ar.ts\n")
+        self.assertEqual(extra, {"A": ["web/lib/ar.ts"], "B": ["rules/**"]})
+        w = t.decide([("rules/notes/revenue.md", "Revenue is net of credits.")], extra)
+        self.assertTrue(w["B"])
+        self.assertFalse(w["A"])
+        self.assertFalse(t.decide([("rules/notes/revenue.md", "Revenue is net of credits.")])["B"])
+
+    def test_bad_line_is_refused(self):
+        with self.assertRaises(SystemExit):
+            t.extra_paths("rules/**")
+
 
 if __name__ == "__main__":
     unittest.main()

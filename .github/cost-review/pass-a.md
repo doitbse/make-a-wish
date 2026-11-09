@@ -92,7 +92,8 @@ Start every comment with exactly one tag:
 - 🟡 **Nit**: a real cost leak that is probably small (under about $100/month). At most 3 per review.
 - ⚪ **Pre-existing**: a cost problem this PR did not introduce.
 
-Do not use 🟠 or 🟢. If you cannot see the traffic or the index manifest, say what you would check
+Do not use 🟠 or 🟢. In the JSON `severity` field use `🔴` for Important and `🟡` for Nit and Pre-existing;
+the tag word (`🔴 **Important**`, `🟡 **Nit**`, `⚪ **Pre-existing**`) starts `comment_text`. If you cannot see the traffic or the index manifest, say what you would check
 instead of asserting.
 
 ## Evidence

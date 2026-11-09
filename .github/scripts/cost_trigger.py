@@ -16,7 +16,7 @@ import subprocess
 
 PATHS_A = ["firestore*.json", "**/firestore*", "**/firestore/**", "**/bigquery*", "**/bigquery/**", "**/bq.*", "**/*.sql", "**/api/**", "**/cron/**",
            "**/middleware.*", "**/middleware/**", "**/proxy.*", "**/cloudbuild*.yaml", "**/Dockerfile*",
-           "terraform/**", "**/*.tf", "**/*.tfvars", "firebase.json", "**/sitemap*", "**/auth.*",
+           "**/terraform/**", "**/*.tf", "**/*.tfvars", "**/*.tfvars.tmpl", "**/*.tf.tmpl", "firebase.json", "**/sitemap*", "**/auth.*",
            # Go service layouts: HTTP handlers and the data-access layer
            "**/handler/**", "**/handlers/**", "**/repository/**", "**/repositories/**",
            # Cloud Run (Knative) service manifests: min/max instances, concurrency, CPU
@@ -25,7 +25,7 @@ PATHS_A = ["firestore*.json", "**/firestore*", "**/firestore/**", "**/bigquery*"
            "**/functions/**"]
 PATHS_B = ["**/SKILL.md", "**/skills/**", "**/prompts/**", "**/prompt*", "**/system-instruction*",
            "**/system_instruction*", "**/agent/**", "**/agents/**", "**/.agents/**", "**/*_agent/**",
-           "**/*-agent/**", "**/agent.py", "**/agent.ts", "**/AGENTS.md", "**/CLAUDE.md", "**/GEMINI.md"]
+           "**/*-agent/**", "**/agent.py", "**/agent.ts", "**/*-agent.py", "**/*-agent.ts", "**/AGENTS.md", "**/CLAUDE.md", "**/GEMINI.md"]
 # Case-insensitive: Go's SDKs export PascalCase methods (`.Collection(`, `.Where(`, `.Bucket(`), Node and
 # Python use camel or snake case for the same calls.
 CONTENT_A = [re.compile(p, re.IGNORECASE) for p in [
@@ -38,7 +38,7 @@ CONTENT_A = [re.compile(p, re.IGNORECASE) for p in [
     r"getReport\(", r"run_?query\(", r"StructuredQuery\(", r"createQueryJob", r"analyticsClient",
     r"reportsClient", r"CREATE TEMP FUNCTION",
     # SQL in application code (Cloud SQL, pgx, database/sql)
-    r"\bselect\s+(\*|[\w.]+(\s*,\s*[\w.]+)*)\s+from\s+\w", r"\.QueryRow\(", r"pool\.Query\(",
+    r"\bselect\s+(distinct\s+)?(\*|[\w.]+(\s*,\s*[\w.]+)*)\s+from\s+\w", r"\.QueryRow\(", r"pool\.Query\(",
     # Firestore and Storage event handlers, and Cloud Storage calls
     r"functions\.firestore", r"functions\.storage", r"onDocument(Written|Created|Updated|Deleted)\(",
     r"onObject(Finalized|Deleted)\(", r"\.bucket\(", r"getFiles\("]]
@@ -46,12 +46,32 @@ CONTENT_B = [re.compile(p) for p in [
     r"@google/genai", r"google\.genai", r"from google import genai", r"generate_?[cC]ontent",
     r"google\.adk", r"LlmAgent", r"\bAgent\(", r"root_agent", r"anthropic", r"openai",
     r"vertexai", r"\bgemini-", r"\bclaude-", r"system_instruction", r"systemInstruction",
-    r"context_cache", r"max_output_tokens", r"maxOutputTokens"]]
+    r"context_cache", r"max_output_tokens", r"maxOutputTokens",
+    # Conversational Analytics (data agents) and the thinking settings that set a call's cost
+    r"geminidataanalytics", r"dataAgents", r"thinking_?[mM]ode", r"thinking_?[bB]udget", r"thinking_?[lL]evel"]]
 DOCS = re.compile(r"\.(md|mdx|txt|rst)$", re.IGNORECASE)          # content checks skip prose; agent .md files match by path
 CONFIG = re.compile(r"\.(ya?ml|json|toml|env|ini)$", re.IGNORECASE)  # pass B content checks skip config (model names in env vars)
 SKIP = re.compile(r"(^|/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock|uv\.lock|poetry\.lock|go\.sum)$"
                   r"|\.(png|jpe?g|gif|webp|svg|ico|woff2?|ttf|pdf|lock)$|\.lock\.hcl$"
                   r"|(^|/)(test|tests|__tests__|e2e)/|\.test\.|\.spec\.|_test\.|(^|/)test_[^/]*\.py$")
+
+
+# Repo-specific paths, one `A <glob>` or `B <glob>` per line, `#` for comments. Read from the base branch
+# like this script, and never written by the installer, so a re-install or a skill update keeps them.
+EXTRA = ".github/cost-review/extra-paths.txt"
+
+
+def extra_paths(text):
+    out = {"A": [], "B": []}
+    for raw in text.splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if not line:
+            continue
+        k, _, g = line.partition(" ")
+        if k not in out or not g.strip():
+            raise SystemExit(f"{EXTRA}: '{raw}' is not 'A <glob>' or 'B <glob>'")
+        out[k].append(g.strip())
+    return out
 
 
 def glob_re(g):
@@ -77,13 +97,14 @@ def path_match(path, globs):
     return any(glob_re(g).match(path) for g in globs)
 
 
-def decide(files):
-    """files: list of (path, added_text). Returns {'A': [...reasons], 'B': [...reasons]}."""
+def decide(files, extra=None):
+    """files: list of (path, added_text); extra: extra_paths() of this repo. Returns {'A': [...], 'B': [...]}."""
+    extra = extra or {"A": [], "B": []}
     why = {"A": [], "B": []}
     for path, added in files:
         if SKIP.search(path):
             continue
-        for k, globs, pats in (("A", PATHS_A, CONTENT_A), ("B", PATHS_B, CONTENT_B)):
+        for k, globs, pats in (("A", PATHS_A + extra["A"], CONTENT_A), ("B", PATHS_B + extra["B"], CONTENT_B)):
             if path_match(path, globs):
                 why[k].append(f"path {path}")
                 continue
@@ -97,10 +118,15 @@ def decide(files):
 
 def files_from_pr(ref):
     repo, n = ref.rsplit("#", 1)
-    # --slurp wraps every page in one JSON array, whatever gh puts between pages.
-    raw = subprocess.run(["gh", "api", "--paginate", "--slurp", f"repos/{repo}/pulls/{n}/files?per_page=100"],
-                         capture_output=True, text=True, check=True).stdout
+    # `gh api --slurp` (gh 2.48+, on every hosted runner; not jq's flag) wraps every page in one JSON array,
+    # so the result is a list of pages, each a list of file objects.
+    res = subprocess.run(["gh", "api", "--paginate", "--slurp", f"repos/{repo}/pulls/{n}/files?per_page=100"],
+                         capture_output=True, text=True, check=False)
+    if res.returncode:
+        raise SystemExit(f"gh api failed, so the cost review cannot decide: {res.stderr.strip()[-500:]}")
+    raw = res.stdout
     items = [f for page in (json.loads(raw) if raw.strip() else []) for f in page]
+    # `patch` holds hunks only (no ---/+++ file headers), so every line starting with + is an added line.
     return [(f["filename"], "\n".join(line[1:] for line in (f.get("patch") or "").splitlines() if line.startswith("+")))
             for f in items]
 
@@ -111,7 +137,11 @@ def main():
     ap.add_argument("--pass", dest="which", choices=["A", "B"], required=True)
     ap.add_argument("--pr", required=True)
     a = ap.parse_args()
-    why = decide(files_from_pr(f"{os.environ['GITHUB_REPOSITORY']}#{a.pr}"))[a.which]
+    extra = None
+    if os.path.exists(EXTRA):
+        with open(EXTRA) as f:
+            extra = extra_paths(f.read())
+    why = decide(files_from_pr(f"{os.environ['GITHUB_REPOSITORY']}#{a.pr}"), extra)[a.which]
     run = "true" if why else "false"
     if os.environ.get("GITHUB_OUTPUT"):
         with open(os.environ["GITHUB_OUTPUT"], "a") as f:
