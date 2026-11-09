@@ -68,6 +68,7 @@ jobs:
     needs: trigger
     if: needs.trigger.outputs.run == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15 # a hung model call must not hold a runner for the 6-hour default
     # Its own group, so it never cancels the general, security or other cost review.
     concurrency:
       group: cost-review-b-${{ github.event.pull_request.number || github.event.issue.number }}
@@ -116,8 +117,9 @@ jobs:
           service_account: ${{ secrets.GEMINI_REVIEW_WIF_SA }}
 
       - name: Gemini cost review, pass B
-        # Same pinned commit as gemini-review.yml; bump all of them together.
-        uses: derailed-dash/gemini-review-action@107d7b4ba795509e8e5e2817849aafca317fd751 # v1.6.7
+        # gemini-review.yml's pin when it is v1.8.0 or later, else v1.8.0: older pins lack the inputs below
+        # and would ignore them (review-layers-setup, install.py MIN_REVIEW_ACTION).
+        uses: derailed-dash/gemini-review-action@3a71a20d3658f82ee2dcad00abe349f5b3110ec8 # v1.8.0
         env:
           GOOGLE_GENAI_USE_VERTEXAI: "True"
           GOOGLE_CLOUD_PROJECT: doit-wish-prod
@@ -128,6 +130,8 @@ jobs:
           gemini_model: gemini-3.8-flash
           language: English (UK)
           persona: straight
+          # Other bots' review threads are not cost context.
+          exclude_comment_authors: "Copilot,copilot-pull-request-reviewer[bot]"
           max_multimodal_images: "0"
           custom_instructions: .github/cost-review-active.md
           context_exclude_patterns: "package-lock.json"

@@ -56,6 +56,43 @@ class Decide(unittest.TestCase):
     def test_lockfiles_and_tests_are_skipped(self):
         self.assertEqual(passes([("pnpm-lock.yaml", "bigquery"), ("web/lib/a.test.ts", "db.collection('x')")]), set())
 
+    # From the rollout PRs' reviews (2026-11-09): repo layouts the first version missed.
+    def test_go_pascal_case_sdk_calls_start_a(self):
+        self.assertEqual(passes([("internal/sync/run.go", 'iter := client.Collection("tickets").Where("open", "==", true).Documents(ctx)')]), {"A"})
+        self.assertEqual(passes([("internal/blob/put.go", 'w := client.Bucket(name).Object(key).NewWriter(ctx)')]), {"A"})
+
+    def test_go_handler_and_repository_start_a_by_path(self):
+        self.assertEqual(passes([("internal/handler/users.go", "func List(w http.ResponseWriter) {")]), {"A"})
+        self.assertEqual(passes([("internal/repository/tickets.go", "return r.rows, nil")]), {"A"})
+        self.assertEqual(passes([("internal/middleware/ratelimit.go", "limit := 10")]), {"A"})
+
+    def test_sql_in_code_starts_a(self):
+        self.assertEqual(passes([("internal/store/t.go", 'rows, err := db.pool.Query(ctx, "SELECT id, name FROM templates.ticket_templates")')]), {"A"})
+        self.assertEqual(passes([("recon/signals.py", "resp = client.run_query(request={'structured_query': q})")]), {"A"})
+
+    def test_root_level_globs_match(self):
+        self.assertEqual(passes([("schema.sql", "alter table x add column y int")]), {"A"})
+        self.assertEqual(passes([("billing_agent/tools.py", "def lookup(): pass")]), {"B"})
+
+    def test_deploy_variants_start_a_by_path(self):
+        self.assertEqual(passes([("recon/Dockerfile.recon", "FROM python:3.12")]), {"A"})
+        self.assertEqual(passes([("environments/prod/terraform.tfvars", 'db_tier = "db-custom-2"')]), {"A"})
+        self.assertEqual(passes([("service.template.yaml", "autoscaling.knative.dev/minScale: '1'")]), {"A"})
+
+    def test_service_glob_stays_inside_one_segment(self):
+        self.assertEqual(passes([("web/services/billing/labels.yaml", "title: Billing")]), set())
+
+    def test_agent_prompt_files_start_b_by_path(self):
+        self.assertEqual(passes([("adk/app/system-instruction.md", "You are a helpful wish triage assistant.")]), {"B"})
+        self.assertEqual(passes([("app/agent.py", "RANK_INSTRUCTION = 'Rank the accounts.'")]), {"B"})
+        self.assertEqual(passes([("routing-agent/app/intent.py", "LABELS = ['billing']")]), {"B"})
+        self.assertEqual(passes([(".agents/workflows/release.md", "Run the release checklist.")]), {"B"})
+
+    def test_python_tests_e2e_and_tf_lock_are_skipped(self):
+        self.assertEqual(passes([(".github/scripts/test_cost_trigger.py", "db.collection('assets').where(1)"),
+                                 ("e2e/sourcing.spec.ts", "db.collection('x')"),
+                                 ("terraform/.terraform.lock.hcl", 'provider "google" {}')]), set())
+
 
 if __name__ == "__main__":
     unittest.main()
