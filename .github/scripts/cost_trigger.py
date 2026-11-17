@@ -120,7 +120,10 @@ def decide(files, extra=None):
 # GitHub answers a busy diff with HTTP 500 ("this diff is temporarily unavailable due to heavy server load"),
 # which failed doitbse/draft#909 on 2026-11-16 until someone re-ran it. Server errors, rate limits and dropped
 # connections are retried; anything else (404, bad token) fails at once, so a real problem still shows.
-TRANSIENT = re.compile(r"HTTP (5\d\d|429)|timed? ?out|connection (reset|refused)|EOF|TLS handshake", re.IGNORECASE)
+# GitHub sends secondary rate limits as HTTP 403 with "rate limit" in the message, so those retry too.
+TRANSIENT = re.compile(
+    r"HTTP (5\d\d|429)|rate[- ]limit|timed? ?out|connection (reset|refused)|EOF|TLS handshake", re.IGNORECASE
+)
 WAITS = (5, 15, 30)  # seconds before each retry: four tries within about a minute
 
 
@@ -130,8 +133,11 @@ def gh_api(args, run=subprocess.run, sleep=time.sleep):
         res = run(["gh", "api", *args], capture_output=True, text=True, check=False)
         if not res.returncode:
             return res.stdout
-        err = res.stderr.strip()[-500:]
-        if wait is None or not TRANSIENT.search(err):
+        # Match on the whole message (a long HTML error page would push the status past a cut-off), and fall
+        # back to stdout and then the exit code so the log never ends in an empty reason.
+        full = res.stderr.strip() or res.stdout.strip()
+        err = full[-500:] or f"exit status {res.returncode}"
+        if wait is None or not TRANSIENT.search(full):
             raise SystemExit(f"gh api failed, so the cost review cannot decide: {err}")
         print(f"gh api failed, retrying in {wait}s: {err}")
         sleep(wait)

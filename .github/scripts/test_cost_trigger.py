@@ -155,6 +155,29 @@ class GhRetry(unittest.TestCase):
             t.gh_api(["x"], run, sleep)
         self.assertEqual((len(calls), waits), (1, []))
 
+    def test_secondary_rate_limit_403_is_retried(self):
+        limited = "gh: You have exceeded a secondary rate limit. Please wait a few minutes. (HTTP 403)"
+        run, sleep, _, waits = self.fake((1, "", limited), (0, "[[]]", ""))
+        self.assertEqual(t.gh_api(["x"], run, sleep), "[[]]")
+        self.assertEqual(waits, [5])
+
+    def test_forbidden_without_rate_limit_fails_at_once(self):
+        run, sleep, _, waits = self.fake((1, "", "gh: Resource not accessible by integration (HTTP 403)"))
+        with self.assertRaises(SystemExit):
+            t.gh_api(["x"], run, sleep)
+        self.assertEqual(waits, [])
+
+    def test_status_early_in_a_long_message_still_retries(self):
+        page = "gh: Server Error (HTTP 503) " + "<p>unicorn</p>" * 100
+        run, sleep, _, waits = self.fake((1, "", page), (0, "[[]]", ""))
+        self.assertEqual(t.gh_api(["x"], run, sleep), "[[]]")
+        self.assertEqual(waits, [5])
+
+    def test_empty_stderr_falls_back_to_stdout_then_exit_code(self):
+        run, sleep, _, _ = self.fake((1, "gh: Bad Gateway (HTTP 502)", ""), (2, "", ""))
+        with self.assertRaises(SystemExit) as e:
+            t.gh_api(["x"], run, sleep)
+        self.assertIn("exit status 2", str(e.exception))
 
 if __name__ == "__main__":
     unittest.main()
