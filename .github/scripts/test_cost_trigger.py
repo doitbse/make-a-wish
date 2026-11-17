@@ -178,6 +178,10 @@ class GhRetry(unittest.TestCase):
         with self.assertRaises(SystemExit) as e:
             t.gh_api(["x"], run, sleep)
         self.assertIn("exit status 2", str(e.exception))
+    def test_status_on_stdout_behind_a_stderr_warning_still_retries(self):
+        run, sleep, _, waits = self.fake((1, "gh: Bad Gateway (HTTP 502)", "warning: token expires soon"), (0, "[[]]", ""))
+        self.assertEqual(t.gh_api(["x"], run, sleep), "[[]]")
+        self.assertEqual(waits, [5])
 
 if __name__ == "__main__":
     unittest.main()

@@ -133,13 +133,13 @@ def gh_api(args, run=subprocess.run, sleep=time.sleep):
         res = run(["gh", "api", *args], capture_output=True, text=True, check=False)
         if not res.returncode:
             return res.stdout
-        # Match on the whole message (a long HTML error page would push the status past a cut-off), and fall
-        # back to stdout and then the exit code so the log never ends in an empty reason.
-        full = res.stderr.strip() or res.stdout.strip()
+        # Match on everything gh printed, both streams and the whole message (a warning on one stream or a long
+        # HTML error page must not hide the status), and fall back to the exit code so the log never ends empty.
+        full = "\n".join(filter(None, (res.stderr.strip(), res.stdout.strip())))
         err = full[-500:] or f"exit status {res.returncode}"
         if wait is None or not TRANSIENT.search(full):
             raise SystemExit(f"gh api failed, so the cost review cannot decide: {err}")
-        print(f"gh api failed, retrying in {wait}s: {err}")
+        print(f"gh api failed, retrying in {wait}s: {err}", flush=True)
         sleep(wait)
 
 
