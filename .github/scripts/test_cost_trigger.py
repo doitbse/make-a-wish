@@ -124,5 +124,66 @@ class ExtraPaths(unittest.TestCase):
             t.extra_paths("rules/**")
 
 
+class GhRetry(unittest.TestCase):
+    """gh_api retries a busy GitHub and fails at once on anything else. No network: run and sleep are fakes."""
+
+    def fake(self, *results):
+        calls, waits = [], []
+
+        def run(cmd, **_):
+            calls.append(cmd)
+            code, out, err = results[len(calls) - 1]
+            return type("R", (), {"returncode": code, "stdout": out, "stderr": err})()
+        return run, waits.append, calls, waits
+
+    def test_server_error_is_retried(self):
+        busy = "gh: Server Error: Sorry, this diff is temporarily unavailable due to heavy server load. (HTTP 500)"
+        run, sleep, calls, waits = self.fake((1, "", busy), (0, "[[]]", ""))
+        self.assertEqual(t.gh_api(["x"], run, sleep), "[[]]")
+        self.assertEqual((len(calls), waits), (2, [5]))
+
+    def test_gives_up_after_the_last_wait(self):
+        run, sleep, calls, waits = self.fake(*[(1, "", "gh: Bad Gateway (HTTP 502)")] * 4)
+        with self.assertRaises(SystemExit) as e:
+            t.gh_api(["x"], run, sleep)
+        self.assertIn("HTTP 502", str(e.exception))
+        self.assertEqual((len(calls), waits), (4, [5, 15, 30]))
+
+    def test_not_found_fails_at_once(self):
+        run, sleep, calls, waits = self.fake((1, "", "gh: Not Found (HTTP 404)"))
+        with self.assertRaises(SystemExit):
+            t.gh_api(["x"], run, sleep)
+        self.assertEqual((len(calls), waits), (1, []))
+
+    def test_secondary_rate_limit_403_is_retried(self):
+        limited = "gh: You have exceeded a secondary rate limit. Please wait a few minutes. (HTTP 403)"
+        run, sleep, _, waits = self.fake((1, "", limited), (0, "[[]]", ""))
+        self.assertEqual(t.gh_api(["x"], run, sleep), "[[]]")
+        self.assertEqual(waits, [5])
+
+    def test_forbidden_without_rate_limit_fails_at_once(self):
+        run, sleep, _, waits = self.fake((1, "", "gh: Resource not accessible by integration (HTTP 403)"))
+        with self.assertRaises(SystemExit):
+            t.gh_api(["x"], run, sleep)
+        self.assertEqual(waits, [])
+
+    def test_status_early_in_a_long_message_still_retries(self):
+        page = "gh: Server Error (HTTP 503) " + "<p>unicorn</p>" * 100
+        run, sleep, _, waits = self.fake((1, "", page), (0, "[[]]", ""))
+        self.assertEqual(t.gh_api(["x"], run, sleep), "[[]]")
+        self.assertEqual(waits, [5])
+
+    def test_empty_stderr_falls_back_to_stdout_then_exit_code(self):
+        run, sleep, _, _ = self.fake((1, "gh: Bad Gateway (HTTP 502)", ""), (2, "", ""))
+        with self.assertRaises(SystemExit) as e:
+            t.gh_api(["x"], run, sleep)
+        self.assertIn("exit status 2", str(e.exception))
+
+    def test_status_on_stdout_behind_a_stderr_warning_still_retries(self):
+        run, sleep, _, waits = self.fake((1, "gh: Bad Gateway (HTTP 502)", "warning: token expires soon"), (0, "[[]]", ""))
+        self.assertEqual(t.gh_api(["x"], run, sleep), "[[]]")
+        self.assertEqual(waits, [5])
+
+
 if __name__ == "__main__":
     unittest.main()
