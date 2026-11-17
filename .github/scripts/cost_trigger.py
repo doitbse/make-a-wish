@@ -13,6 +13,7 @@ import json
 import os
 import re
 import subprocess
+import time
 
 PATHS_A = ["firestore*.json", "**/firestore*", "**/firestore/**", "**/bigquery*", "**/bigquery/**", "**/bq.*", "**/*.sql", "**/api/**", "**/cron/**",
            "**/middleware.*", "**/middleware/**", "**/proxy.*", "**/cloudbuild*.yaml", "**/Dockerfile*",
@@ -116,15 +117,31 @@ def decide(files, extra=None):
     return why
 
 
+# GitHub answers a busy diff with HTTP 500 ("this diff is temporarily unavailable due to heavy server load"),
+# which failed doitbse/draft#909 on 2026-11-16 until someone re-ran it. Server errors, rate limits and dropped
+# connections are retried; anything else (404, bad token) fails at once, so a real problem still shows.
+TRANSIENT = re.compile(r"HTTP (5\d\d|429)|timed? ?out|connection (reset|refused)|EOF|TLS handshake", re.IGNORECASE)
+WAITS = (5, 15, 30)  # seconds before each retry: four tries within about a minute
+
+
+def gh_api(args, run=subprocess.run, sleep=time.sleep):
+    """`gh api <args>`, retried on transient errors. Exits with gh's error once it stops being worth a retry."""
+    for wait in (*WAITS, None):
+        res = run(["gh", "api", *args], capture_output=True, text=True, check=False)
+        if not res.returncode:
+            return res.stdout
+        err = res.stderr.strip()[-500:]
+        if wait is None or not TRANSIENT.search(err):
+            raise SystemExit(f"gh api failed, so the cost review cannot decide: {err}")
+        print(f"gh api failed, retrying in {wait}s: {err}")
+        sleep(wait)
+
+
 def files_from_pr(ref):
     repo, n = ref.rsplit("#", 1)
     # `gh api --slurp` (gh 2.48+, on every hosted runner; not jq's flag) wraps every page in one JSON array,
     # so the result is a list of pages, each a list of file objects.
-    res = subprocess.run(["gh", "api", "--paginate", "--slurp", f"repos/{repo}/pulls/{n}/files?per_page=100"],
-                         capture_output=True, text=True, check=False)
-    if res.returncode:
-        raise SystemExit(f"gh api failed, so the cost review cannot decide: {res.stderr.strip()[-500:]}")
-    raw = res.stdout
+    raw = gh_api(["--paginate", "--slurp", f"repos/{repo}/pulls/{n}/files?per_page=100"])
     items = [f for page in (json.loads(raw) if raw.strip() else []) for f in page]
     # `patch` holds hunks only (no ---/+++ file headers), so every line starting with + is an added line.
     return [(f["filename"], "\n".join(line[1:] for line in (f.get("patch") or "").splitlines() if line.startswith("+")))

@@ -124,5 +124,37 @@ class ExtraPaths(unittest.TestCase):
             t.extra_paths("rules/**")
 
 
+class GhRetry(unittest.TestCase):
+    """gh_api retries a busy GitHub and fails at once on anything else. No network: run and sleep are fakes."""
+
+    def fake(self, *results):
+        calls, waits = [], []
+
+        def run(cmd, **_):
+            calls.append(cmd)
+            code, out, err = results[len(calls) - 1]
+            return type("R", (), {"returncode": code, "stdout": out, "stderr": err})()
+        return run, waits.append, calls, waits
+
+    def test_server_error_is_retried(self):
+        busy = "gh: Server Error: Sorry, this diff is temporarily unavailable due to heavy server load. (HTTP 500)"
+        run, sleep, calls, waits = self.fake((1, "", busy), (0, "[[]]", ""))
+        self.assertEqual(t.gh_api(["x"], run, sleep), "[[]]")
+        self.assertEqual((len(calls), waits), (2, [5]))
+
+    def test_gives_up_after_the_last_wait(self):
+        run, sleep, calls, waits = self.fake(*[(1, "", "gh: Bad Gateway (HTTP 502)")] * 4)
+        with self.assertRaises(SystemExit) as e:
+            t.gh_api(["x"], run, sleep)
+        self.assertIn("HTTP 502", str(e.exception))
+        self.assertEqual((len(calls), waits), (4, [5, 15, 30]))
+
+    def test_not_found_fails_at_once(self):
+        run, sleep, calls, waits = self.fake((1, "", "gh: Not Found (HTTP 404)"))
+        with self.assertRaises(SystemExit):
+            t.gh_api(["x"], run, sleep)
+        self.assertEqual((len(calls), waits), (1, []))
+
+
 if __name__ == "__main__":
     unittest.main()
