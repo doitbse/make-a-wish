@@ -37,9 +37,19 @@ class Repeats(unittest.TestCase):
     def test_general_review_comments_do_not_count(self):
         self.assertEqual(d.repeats([c(20, 2), c(30, 3)], REVIEWS, "B"), [])
 
-    def test_the_other_cost_pass_counts_as_earlier(self):
-        # Pass A in review 4 repeats pass B's line from review 3.
-        self.assertEqual(d.repeats([c(30, 3), c(40, 4)], REVIEWS, "A"), [40])
+    def test_the_other_pass_is_not_a_repeat(self):
+        # Pass A in review 4 next to pass B's comment from review 3: a different finding.
+        self.assertEqual(d.repeats([c(30, 3), c(40, 4)], REVIEWS, "A"), [])
+
+    def test_same_second_breaks_on_the_review_id(self):
+        same = [dict(r, submitted_at="2026-11-21T09:00:00Z") for r in REVIEWS]
+        self.assertEqual(d.repeats([c(10, 1), c(30, 3)], same, "B"), [30])
+
+    def test_only_a_review_of_the_current_head_counts(self):
+        on = [dict(r, commit_id="abc" if r["id"] == 3 else "old") for r in REVIEWS]
+        self.assertEqual(d.repeats([c(10, 1), c(30, 3)], on, "B", head_sha="abc"), [30])
+        # The review step failed on head "def": the newest review is an earlier run's, so nothing is touched.
+        self.assertEqual(d.repeats([c(10, 1), c(30, 3)], on, "B", head_sha="def"), [])
 
     def test_replies_are_never_touched(self):
         self.assertEqual(d.repeats([c(10, 1), c(31, 3, reply=10)], REVIEWS, "B"), [])
