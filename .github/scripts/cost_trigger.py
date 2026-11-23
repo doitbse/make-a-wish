@@ -143,6 +143,23 @@ def gh_api(args, run=subprocess.run, sleep=time.sleep):
         sleep(wait)
 
 
+# A release PR promotes an integration branch (dev, develop, staging) into another branch, usually main. Every
+# change in it was cost-reviewed on its own PR into that branch, so reviewing the bundle again only re-posts
+# findings their authors already answered (resolve-api#465 and resolve-ai#120, 2026-11). A `/gemini-review`
+# comment still runs it on purpose.
+PROMOTION_HEADS = {"dev", "develop", "development", "staging"}
+
+
+def is_promotion(head, base):
+    return head in PROMOTION_HEADS and base != head
+
+
+def branches_of_pr(ref):
+    repo, n = ref.rsplit("#", 1)
+    pr = json.loads(gh_api([f"repos/{repo}/pulls/{n}"]))
+    return pr["head"]["ref"], pr["base"]["ref"]
+
+
 def files_from_pr(ref):
     repo, n = ref.rsplit("#", 1)
     # `gh api --slurp` (gh 2.48+, on every hosted runner; not jq's flag) wraps every page in one JSON array,
@@ -154,7 +171,6 @@ def files_from_pr(ref):
             for f in items]
 
 
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pass", dest="which", choices=["A", "B"], required=True)
@@ -164,12 +180,18 @@ def main():
     if os.path.exists(EXTRA):
         with open(EXTRA, encoding="utf-8") as f:
             extra = extra_paths(f.read())
-    why = decide(files_from_pr(f"{os.environ['GITHUB_REPOSITORY']}#{a.pr}"), extra)[a.which]
+    ref = f"{os.environ['GITHUB_REPOSITORY']}#{a.pr}"
+    head, base = branches_of_pr(ref)
+    if is_promotion(head, base) and os.environ.get("GITHUB_EVENT_NAME") != "issue_comment":
+        why, skipped = [], f"skipped, release PR ({head} into {base}): its changes were reviewed on their own PRs"
+    else:
+        why = decide(files_from_pr(ref), extra)[a.which]
+        skipped = "skipped, no matching file"
     run = "true" if why else "false"
     if os.environ.get("GITHUB_OUTPUT"):
         with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
             f.write(f"run={run}\n")
-    lines = [f"Cost pass {a.which}: {'runs' if why else 'skipped, no matching file'}"] + [f"- {w}" for w in why[:20]]
+    lines = [f"Cost pass {a.which}: {'runs' if why else skipped}"] + [f"- {w}" for w in why[:20]]
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
             f.write("\n".join(lines) + "\n")

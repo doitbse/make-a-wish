@@ -108,6 +108,8 @@ jobs:
           mkdir -p .github/commands
           cp .cost-base/.github/cost-review.toml .github/commands/gemini-review.toml
           cp .cost-base/.github/cost-review/pass-a.md .github/cost-review-active.md
+          # The repeat filter runs after the review, from the base branch like the trigger (absent until it lands there).
+          if [ -f .cost-base/.github/scripts/cost_dedupe.py ]; then cp .cost-base/.github/scripts/cost_dedupe.py "$RUNNER_TEMP/"; fi
           rm -rf .cost-base
 
       - name: Authenticate to Google Cloud (WIF)
@@ -139,3 +141,16 @@ jobs:
           extra_context_files: cloudbuild.yaml
           context_exclude_patterns: "package-lock.json"
           billing_labels: review=cost-a
+
+      - name: Remove repeated findings
+        # A re-run reviews the whole diff again and can post a finding its author already answered
+        # (.github/scripts/cost_dedupe.py). Runs even when the review step failed; never fails the job.
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+        run: |
+          if [ ! -f "$RUNNER_TEMP/cost_dedupe.py" ]; then
+            echo "::notice::.github/scripts/cost_dedupe.py is not on the base branch yet; skipped."; exit 0
+          fi
+          python3 "$RUNNER_TEMP/cost_dedupe.py" --pass A --pr "$PR_NUMBER" || true
