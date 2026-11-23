@@ -124,6 +124,20 @@ class ExtraPaths(unittest.TestCase):
             t.extra_paths("rules/**")
 
 
+class Promotion(unittest.TestCase):
+    def test_dev_into_main_is_a_release(self):
+        self.assertTrue(t.is_promotion("dev", "main"))
+        self.assertTrue(t.is_promotion("staging", "main"))
+
+    def test_feature_branches_are_not(self):
+        self.assertFalse(t.is_promotion("feat/jesslyn-doit/replica", "dev"))
+        self.assertFalse(t.is_promotion("ci/saschaheyer/cost-review", "main"))
+
+    def test_back_merge_into_dev_is_not(self):
+        # main into dev (a back-merge) still runs: its head is main, not an integration branch.
+        self.assertFalse(t.is_promotion("main", "dev"))
+
+
 class GhRetry(unittest.TestCase):
     """gh_api retries a busy GitHub and fails at once on anything else. No network: run and sleep are fakes."""
 

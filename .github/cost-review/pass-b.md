@@ -18,6 +18,15 @@ For every finding, estimate **how often it runs** (per run, per item, per page v
 **how many tokens** it adds (about 4 characters per token; output tokens cost several times input
 tokens), and say what that costs if the guess is right.
 
+**Name the traffic you assume, and where it comes from.** Every estimate says its volume and its
+source: a cron schedule, a `max_instances` or batch size, a config flag, a loop bound, a caller you
+can see. When the volume is not in the code, write "volume unknown" and give the cost per 1,000 runs
+instead of inventing a monthly count, and make it 🔴 only if it passes $100/month at a modest volume
+you can defend (tens of runs a day, not thousands). Check that a job or feature is switched on before
+you count its traffic: a job behind a flag that is `false` in the deployed config, or an eval that is
+not deployed, runs zero times. The first two weeks of BSE reviews priced reroutes at 2,000 to 4,000 a
+month that ran less than once a day, and a read at 0.5 to 1 GB that measured 81 MB.
+
 Go through every numbered item below against the diff before you answer.
 
 1. **Calls per view or per item.** A model call on every page view, or one call per item where one
@@ -39,6 +48,9 @@ Go through every numbered item below against the diff before you answer.
    tools it does not need for its job, or tool results passed back whole when a summary would do.
 7. **Model tier.** The largest model (Pro, Opus, Argon) for extraction, labelling, routing or a
    scheduled job where a Flash or Haiku class model would do. Say what the task needs.
+   A larger model used **only as a fallback** (after the main model returns 429, 503 or 504), only
+   on a retry, or only in a job that is switched off is bounded by that error rate or that switch:
+   make it 🟡 at most, and say what share of calls reaches it.
 8. **Model work that needs no model.** An agent loop whose turns mostly do deterministic work through
    tools: fetching or crawling pages, reading and writing files, diffing two versions, running git,
    formatting a message. Each of those turns re-sends the whole context. Only the step that needs
@@ -68,6 +80,10 @@ the tag word (`🔴 **Important**`, `🟡 **Nit**`, `⚪ **Pre-existing**`) star
 instead of asserting.
 
 ## Evidence
+**Do not repeat a finding.** If an earlier cost review thread on this PR already raised it, resolved
+or answered or not, do not raise it again unless the code it points at has changed since. An author
+who answered "intentional" has decided; a second copy of the comment only costs them another reply.
+
 
 Every finding names `path:line`, how often the code runs, and the fix (index, cache, batch, id
 lookup, config value). Inline comments go on changed lines only. The summary MUST begin with the exact text `Cost review B:` followed by the counts, for example
